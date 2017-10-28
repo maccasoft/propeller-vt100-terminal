@@ -1,0 +1,4 @@
+.settings
+*.o
+*.elf
+*.binary
