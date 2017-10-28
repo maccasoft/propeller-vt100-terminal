@@ -52,7 +52,7 @@ VAR
 OBJ
 
     hc     : "usb-fs-host"
-    ser    : "com.serial"
+    ser    : "com.serial.terminal"
     debug  : "com.serial.terminal"
     driver : "waitvid.80x25.driver"
     font   : "generic8x16-2font"
@@ -167,74 +167,100 @@ PRI decodeVT100 | c, i, x, y
             ";":
                 ansi_argc++
                 ansi_args[ansi_argc] := 0
-            "A":
-                if txt_cursor.byte[CY] > 0
-                    txt_cursor.byte[CY]--
-                return
-            "B":
-                if txt_cursor.byte[CY] < constant(rows - 1)
-                    txt_cursor.byte[CY]++
-                return
-            "C":
-                if txt_cursor.byte[CX] < constant(columns - 1)
-                    txt_cursor.byte[CX]++
-                return
-            "D":
-                if txt_cursor.byte[CX] > 0
-                    txt_cursor.byte[CX]--
-                return
-            "J":
-                if ansi_args[0] == 2
-                    wordfill(@scrn, txt_attr, bcnt)
-                return
-            "K":
-                x := txt_cursor.byte[CX]
-                y := txt_cursor.byte[CY]
-                txt_attr.byte[1] := $20
-                if ansi_args[0] == 1
-                    repeat txt_cursor.byte[CX]
-                        scrn.word[bcnt_raw - y * columns - --x] := txt_attr
-                else
-                    repeat constant(columns - 1) - txt_cursor.byte[CX]
-                        scrn.word[bcnt_raw - y * columns - ++x] := txt_attr
-                return
-            "f":
-            "H":
-                if ansi_args[0] <> 0
-                    txt_cursor.byte[CY] := (ansi_args[0] - 1) // rows
-                else
-                    txt_cursor.byte[CY] := 0
-                if ansi_argc => 1
-                    txt_cursor.byte[CX] := (ansi_args[1] - 1) // columns
-                else
-                    txt_cursor.byte[CX] := 0
-                return
-            "m":
-                if ansi_argc => 2 and ansi_args[1] == 5
-                    if ansi_args[0] == 38
-                        txt_attr := (txt_attr & $0F) | (ansi_args[2] << 4)
-                        return
-                    if ansi_args[0] == 48
-                        txt_attr := (txt_attr & $F0) | ansi_args[2]
-                        txt_attr &= $FE
-                        return
+    until (c => "a" and c =< "z") or (c => "A" and c =< "Z")
 
-                repeat i from 0 to ansi_argc
-                    if ansi_args[i] == 0
-                        txt_attr &= $7F
-                    elseif ansi_args[i] == 1
+    x := txt_cursor.byte[CX]
+    y := txt_cursor.byte[CY]
+
+    case c
+        "A":
+            if ansi_args[0] > 0
+                y := y - ansi_args[0] #> 0
+            elseif y > 0
+                y--
+        "B":
+            if ansi_args[0] > 0
+                y := y + ansi_args[0] <# constant(rows - 1)
+            elseif y < constant(rows - 1)
+                y++
+        "C":
+            if ansi_args[0] > 0
+                x := x + ansi_args[0] <# constant(columns - 1)
+            elseif x < constant(columns - 1)
+                x++
+        "D":
+            if ansi_args[0] > 0
+                x := x - ansi_args[0] #> 0
+            elseif x > 0
+                x--
+        "J":
+            if ansi_args[0] == 2
+                wordfill(@scrn, txt_attr, bcnt)
+        "K":
+            txt_attr.byte[1] := $20
+            if ansi_args[0] == 1
+                repeat txt_cursor.byte[CX]
+                    scrn.word[bcnt_raw - y * columns - --x] := txt_attr
+            else
+                repeat constant(columns - 1) - txt_cursor.byte[CX]
+                    scrn.word[bcnt_raw - y * columns - ++x] := txt_attr
+        "H", "f":
+            y := x := 0
+            if ansi_args[0] > 0
+                y := (ansi_args[0] - 1) // rows
+            if ansi_argc => 1 and ansi_args[1] > 0
+                x := (ansi_args[1] - 1) // columns
+        "m":
+            if ansi_argc => 2 and ansi_args[1] == 5
+                if ansi_args[0] == 38
+                    txt_attr := (txt_attr & $0F) | (ansi_args[2] << 4)
+                if ansi_args[0] == 48
+                    txt_attr := (txt_attr & $F0) | ansi_args[2]
+                    txt_attr &= $FE
+
+            repeat i from 0 to ansi_argc
+                case ansi_args[i]
+                    0:
+                        txt_attr := 0
+                    1:
                         txt_attr |= $80
-                    elseif ansi_args[i] => 30 and ansi_args[i] =< 37
+                    2:
+                        txt_attr &= $7F
+                    5, 6:
+                        txt_attr |= $01
+                    25:
+                        txt_attr &= $FE
+                    30..37:
                         txt_attr := (txt_attr & $8F) | ((ansi_args[i] - 30) << 4)
-                    elseif ansi_args[i] => 40 and ansi_args[i] =< 47
+                    38:
+                        if ansi_args[i + 1] == 5
+                            txt_attr := (txt_attr & $0F) | ((ansi_args[i + 2] & $0F) << 4)
+                            i += 2
+                    39:
+                        txt_attr := (txt_attr & $0F) | $70
+                    40..47:
                         txt_attr := (txt_attr & $F1) | ((ansi_args[i] - 40) << 1)
-                return
-            "s":
-                ansi_cursor_save := txt_cursor
-            "u":
-                txt_cursor := ansi_cursor_save
-            other:
-                return
+                    48:
+                        if ansi_args[i + 1] == 5
+                            txt_attr := (txt_attr & $F1) | ((ansi_args[i + 2] & $07) << 1)
+                            i += 2
+                    49:
+                        txt_attr := (txt_attr & $F1)
+        "n":
+            if ansi_args[0] == 6
+                ser.str(string($1B, "["))
+                ser.dec(txt_cursor.byte[CY] + 1)
+                ser.char(";")
+                ser.dec(txt_cursor.byte[CX] + 1)
+                ser.char("m")
+        "s":
+            ansi_cursor_save := txt_cursor
+        "u":
+            x := ansi_cursor_save.byte[CX]
+            y := ansi_cursor_save.byte[CY]
+
+    txt_cursor.byte[CX] := x
+    txt_cursor.byte[CY] := y
 
 PUB start_usb | retval, ifd, epd
 
