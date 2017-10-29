@@ -56,6 +56,7 @@ OBJ
     debug  : "com.serial.terminal"
     driver : "waitvid.80x25.driver"
     font   : "generic8x16-2font"
+    kb : "keyboard"
     'keymap : "keymap_us"
     keymap : "keymap_it"
     'keymap : "keymap_uk"
@@ -78,24 +79,6 @@ PUB start | c, x, y
     setCursor(CURSOR_ON|CURSOR_BLOCK|CURSOR_FLASH)
 
     cognew(start_usb, @usb_stack)
-
-{
-    repeat y from 0 to 15
-        repeat x from 0 to 7
-            txt_attr := (y << 4) | (x << 1)
-            printText(string($80, $80, $80, $80, $80))
-        txt_cursor.byte[CX] := 0
-        txt_cursor.byte[CY]++
-
-    txt_attr := $20_F0
-    i := 0
-    repeat y from 0 to 7
-        repeat x from 0 to 31
-            printChar(i++)
-        txt_cursor.byte[CX] := 0
-        txt_cursor.byte[CY]++
-    txt_cursor.byte[CY]++
-}
 
     repeat
         c := ser.rxCheck
@@ -330,9 +313,9 @@ PRI decode(buffer) | i, c, k, mod, ptr
             if c => 0 and c =< $FF
                 ser.char(c)
                 debug.hex(c, 2)
-            elseif c => $100 and c < keymap#KeyMaxCode
-                debug.dec(c - $100)
-                ptr := @@strTable[c - $100]
+            elseif c => kb#KeySpace and c < kb#KeyMaxCode
+                debug.dec(c - kb#KeySpace)
+                ptr := @@strTable[c - kb#KeySpace]
                 repeat strsize(ptr)
                     ser.char(byte[ptr])
                     debug.char(" ")

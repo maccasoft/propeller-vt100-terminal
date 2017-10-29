@@ -1,59 +1,6 @@
-CON
-    KeyNone = 0
+OBJ
 
-    #$100
-    KeySpace
-    KeyEscape
-    KeyBackspace
-    KeyTabulator
-    KeyReturn
-    KeyInsert
-    KeyHome
-    KeyPageUp
-    KeyDelete
-    KeyEnd
-    KeyPageDown
-    KeyUp
-    KeyDown
-    KeyLeft
-    KeyRight
-    KeyF1
-    KeyF2
-    KeyF3
-    KeyF4
-    KeyF5
-    KeyF6
-    KeyF7
-    KeyF8
-    KeyF9
-    KeyF10
-    KeyF11
-    KeyF12
-    KeyApplication
-    KeyCapsLock
-    KeyPrintScreen
-    KeyScrollLock
-    KeyPause
-    KeyNumLock
-    KeyKP_Divide
-    KeyKP_Multiply
-    KeyKP_Subtract
-    KeyKP_Add
-    KeyKP_Enter
-    KeyKP_1
-    KeyKP_2
-    KeyKP_3
-    KeyKP_4
-    KeyKP_5
-    KeyKP_6
-    KeyKP_7
-    KeyKP_8
-    KeyKP_9
-    KeyKP_0
-    KeyKP_Center
-    KeyKP_Comma
-    KeyKP_Period
-    KeyMaxCode
+    kb : "keyboard"
 
 PUB null
 '' This is not a top level object.
@@ -67,131 +14,132 @@ PUB map(k, mod) | i
 DAT
 
 keymap
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x00
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x01
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x02
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x03
-    word    "a",            "A",            KeyNone,    KeyNone   ' 0x04
-    word    "b",            "B",            KeyNone,    KeyNone   ' 0x05
-    word    "c",            "C",            KeyNone,    KeyNone   ' 0x06
-    word    "d",            "D",            KeyNone,    KeyNone   ' 0x07
-    word    "e",            "E",            $80,        $80       ' 0x08
-    word    "f",            "F",            KeyNone,    KeyNone   ' 0x09
-    word    "g",            "G",            KeyNone,    KeyNone   ' 0x0A
-    word    "h",            "H",            KeyNone,    KeyNone   ' 0x0B
-    word    "i",            "I",            KeyNone,    KeyNone   ' 0x0C
-    word    "j",            "J",            KeyNone,    KeyNone   ' 0x0D
-    word    "k",            "K",            KeyNone,    KeyNone   ' 0x0E
-    word    "l",            "L",            KeyNone,    KeyNone   ' 0x0F
-    word    "m",            "M",            KeyNone,    KeyNone   ' 0x10
-    word    "n",            "N",            KeyNone,    KeyNone   ' 0x11
-    word    "o",            "O",            KeyNone,    KeyNone   ' 0x12
-    word    "p",            "P",            KeyNone,    KeyNone   ' 0x13
-    word    "q",            "Q",            KeyNone,    KeyNone   ' 0x14
-    word    "r",            "R",            KeyNone,    KeyNone   ' 0x15
-    word    "s",            "S",            KeyNone,    KeyNone   ' 0x16
-    word    "t",            "T",            KeyNone,    KeyNone   ' 0x17
-    word    "u",            "U",            KeyNone,    KeyNone   ' 0x18
-    word    "v",            "V",            KeyNone,    KeyNone   ' 0x19
-    word    "w",            "W",            KeyNone,    KeyNone   ' 0x1A
-    word    "x",            "X",            KeyNone,    KeyNone   ' 0x1B
-    word    "y",            "Y",            KeyNone,    KeyNone   ' 0x1C
-    word    "z",            "Z",            KeyNone,    KeyNone   ' 0x1D
-    word    "1",            "!",            KeyNone,    KeyNone   ' 0x1E
-    word    "2",            $22,            KeyNone,    KeyNone   ' 0x1F
-    word    "3",            $9C,            KeyNone,    KeyNone   ' 0x20
-    word    "4",            "$",            KeyNone,    KeyNone   ' 0x21
-    word    "5",            "%",            $80,        $80       ' 0x22
-    word    "6",            "&",            KeyNone,    KeyNone   ' 0x23
-    word    "7",            "/",            KeyNone,    KeyNone   ' 0x24
-    word    "8",            "(",            KeyNone,    KeyNone   ' 0x25
-    word    "9",            ")",            KeyNone,    KeyNone   ' 0x26
-    word    "0",            "=",            KeyNone,    KeyNone   ' 0x27
-    word    $0D,            $0D,            KeyNone,    KeyNone   ' 0x28 Return
-    word    $1B,            $1B,            KeyNone,    KeyNone   ' 0x29 ESCape
-    word    $08,            $08,            KeyNone,    KeyNone   ' 0x2A Backspace
-    word    $09,            $09,            KeyNone,    KeyNone   ' 0x2B TAB
-    word    " ",            " ",            KeyNone,    KeyNone   ' 0x2C Space
-    word    "'",            "?",            KeyNone,    KeyNone   ' 0x2D
-    word    $8D,            "^",            KeyNone,    KeyNone   ' 0x2E
-    word    $8A,            $82,            "[",        "{"       ' 0x2F
-    word    "+",            "*",            "]",        "}"       ' 0x30
-    word    $97,            $F5,            KeyNone,    KeyNone   ' 0x31
-    word    $A3,            $F5,            KeyNone,    KeyNone   ' 0x32
-    word    $95,            $87,            "@",        KeyNone   ' 0x33
-    word    $85,            $F8,            "#",        KeyNone   ' 0x34
-    word    "\",            "|",            KeyNone,    KeyNone   ' 0x35
-    word    ",",            ";",            KeyNone,    KeyNone   ' 0x36
-    word    ".",            ":",            KeyNone,    KeyNone   ' 0x37
-    word    "-",            "_",            KeyNone,    KeyNone   ' 0x38
-    word    KeyCapsLock,    KeyCapsLock,    KeyNone,    KeyNone   ' 0x39
-    word    KeyF1,          KeyNone,        KeyNone,    KeyNone   ' 0x3A
-    word    KeyF2,          KeyNone,        KeyNone,    KeyNone   ' 0x3B
-    word    KeyF3,          KeyNone,        KeyNone,    KeyNone   ' 0x3C
-    word    KeyF4,          KeyNone,        KeyNone,    KeyNone   ' 0x3D
-    word    KeyF5,          KeyNone,        KeyNone,    KeyNone   ' 0x3E
-    word    KeyF6,          KeyNone,        KeyNone,    KeyNone   ' 0x3F
-    word    KeyF7,          KeyNone,        KeyNone,    KeyNone   ' 0x40
-    word    KeyF8,          KeyNone,        KeyNone,    KeyNone   ' 0x41
-    word    KeyF9,          KeyNone,        KeyNone,    KeyNone   ' 0x42
-    word    KeyF10,         KeyNone,        KeyNone,    KeyNone   ' 0x43
-    word    KeyF11,         KeyNone,        KeyNone,    KeyNone   ' 0x44
-    word    KeyF12,         KeyNone,        KeyNone,    KeyNone   ' 0x45
-    word    KeyPrintScreen, KeyNone,        KeyNone,    KeyNone   ' 0x46
-    word    KeyScrollLock,  KeyNone,        KeyNone,    KeyNone   ' 0x47
-    word    KeyPause,       KeyNone,        KeyNone,    KeyNone   ' 0x48
-    word    KeyInsert,      KeyNone,        KeyNone,    KeyNone   ' 0x49
-    word    KeyHome,        KeyNone,        KeyNone,    KeyNone   ' 0x4A
-    word    KeyPageUp,      KeyNone,        KeyNone,    KeyNone   ' 0x4B
-    word    KeyDelete,      KeyNone,        KeyNone,    KeyNone   ' 0x4C
-    word    KeyEnd,         KeyNone,        KeyNone,    KeyNone   ' 0x4D
-    word    KeyPageDown,    KeyNone,        KeyNone,    KeyNone   ' 0x4E
-    word    KeyRight,       KeyNone,        KeyNone,    KeyNone   ' 0x4F
-    word    KeyLeft,        KeyNone,        KeyNone,    KeyNone   ' 0x50
-    word    KeyDown,        KeyNone,        KeyNone,    KeyNone   ' 0x51
-    word    KeyUp,          KeyNone,        KeyNone,    KeyNone   ' 0x52
-    word    KeyNumLock,     KeyNumLock,     KeyNone,    KeyNone   ' 0x53
-    word    KeyKP_Divide,   KeyKP_Divide,   KeyNone,    KeyNone   ' 0x54
-    word    KeyKP_Multiply, KeyKP_Multiply, KeyNone,    KeyNone   ' 0x55
-    word    KeyKP_Subtract, KeyKP_Subtract, KeyNone,    KeyNone   ' 0x56
-    word    KeyKP_Add,      KeyKP_Add,      KeyNone,    KeyNone   ' 0x57
-    word    KeyKP_Enter,    KeyKP_Enter,    KeyNone,    KeyNone   ' 0x58
-    word    KeyEnd,         KeyKP_1,        KeyNone,    KeyNone   ' 0x59
-    word    KeyDown,        KeyKP_2,        KeyNone,    KeyNone   ' 0x5A
-    word    KeyPageDown,    KeyKP_3,        KeyNone,    KeyNone   ' 0x5B
-    word    KeyLeft,        KeyKP_4,        KeyNone,    KeyNone   ' 0x5C
-    word    KeyKP_Center,   KeyKP_5,        KeyNone,    KeyNone   ' 0x5D
-    word    KeyRight,       KeyKP_6,        KeyNone,    KeyNone   ' 0x5E
-    word    KeyHome,        KeyKP_7,        KeyNone,    KeyNone   ' 0x5F
-    word    KeyUp,          KeyKP_8,        KeyNone,    KeyNone   ' 0x60
-    word    KeyPageUp,      KeyKP_9,        KeyNone,    KeyNone   ' 0x61
-    word    KeyInsert,      KeyKP_0,        KeyNone,    KeyNone   ' 0x62
-    word    KeyDelete,      KeyKP_Period,   KeyNone,    KeyNone   ' 0x63
-    word    "<",            ">",            KeyNone,    KeyNone   ' 0x64
-    word    KeyApplication, KeyApplication, KeyNone,    KeyNone   ' 0x65
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x66
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x67
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x68
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x69
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x6A
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x6B
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x6C
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x6D
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x6E
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x6F
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x70
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x71
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x72
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x73
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x74
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x75
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x76
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x77
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x78
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x79
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x7A
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x7B
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x7C
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x7D
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x7E
-    word    KeyNone,        KeyNone,        KeyNone,    KeyNone   ' 0x7F
+    '       Normal             Shift              AltGR              Shift+AltGR
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x00
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x01
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x02
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x03
+    word    "a",               "A",               kb#KeyNone,        kb#KeyNone         ' 0x04
+    word    "b",               "B",               kb#KeyNone,        kb#KeyNone         ' 0x05
+    word    "c",               "C",               kb#KeyNone,        kb#KeyNone         ' 0x06
+    word    "d",               "D",               kb#KeyNone,        kb#KeyNone         ' 0x07
+    word    "e",               "E",               $80,               $80                ' 0x08
+    word    "f",               "F",               kb#KeyNone,        kb#KeyNone         ' 0x09
+    word    "g",               "G",               kb#KeyNone,        kb#KeyNone         ' 0x0A
+    word    "h",               "H",               kb#KeyNone,        kb#KeyNone         ' 0x0B
+    word    "i",               "I",               kb#KeyNone,        kb#KeyNone         ' 0x0C
+    word    "j",               "J",               kb#KeyNone,        kb#KeyNone         ' 0x0D
+    word    "k",               "K",               kb#KeyNone,        kb#KeyNone         ' 0x0E
+    word    "l",               "L",               kb#KeyNone,        kb#KeyNone         ' 0x0F
+    word    "m",               "M",               kb#KeyNone,        kb#KeyNone         ' 0x10
+    word    "n",               "N",               kb#KeyNone,        kb#KeyNone         ' 0x11
+    word    "o",               "O",               kb#KeyNone,        kb#KeyNone         ' 0x12
+    word    "p",               "P",               kb#KeyNone,        kb#KeyNone         ' 0x13
+    word    "q",               "Q",               kb#KeyNone,        kb#KeyNone         ' 0x14
+    word    "r",               "R",               kb#KeyNone,        kb#KeyNone         ' 0x15
+    word    "s",               "S",               kb#KeyNone,        kb#KeyNone         ' 0x16
+    word    "t",               "T",               kb#KeyNone,        kb#KeyNone         ' 0x17
+    word    "u",               "U",               kb#KeyNone,        kb#KeyNone         ' 0x18
+    word    "v",               "V",               kb#KeyNone,        kb#KeyNone         ' 0x19
+    word    "w",               "W",               kb#KeyNone,        kb#KeyNone         ' 0x1A
+    word    "x",               "X",               kb#KeyNone,        kb#KeyNone         ' 0x1B
+    word    "y",               "Y",               kb#KeyNone,        kb#KeyNone         ' 0x1C
+    word    "z",               "Z",               kb#KeyNone,        kb#KeyNone         ' 0x1D
+    word    "1",               "!",               kb#KeyNone,        kb#KeyNone         ' 0x1E
+    word    "2",               $22,               kb#KeyNone,        kb#KeyNone         ' 0x1F
+    word    "3",               $9C,               kb#KeyNone,        kb#KeyNone         ' 0x20
+    word    "4",               "$",               kb#KeyNone,        kb#KeyNone         ' 0x21
+    word    "5",               "%",               $80,               $80                ' 0x22
+    word    "6",               "&",               kb#KeyNone,        kb#KeyNone         ' 0x23
+    word    "7",               "/",               kb#KeyNone,        kb#KeyNone         ' 0x24
+    word    "8",               "(",               kb#KeyNone,        kb#KeyNone         ' 0x25
+    word    "9",               ")",               kb#KeyNone,        kb#KeyNone         ' 0x26
+    word    "0",               "=",               kb#KeyNone,        kb#KeyNone         ' 0x27
+    word    $0D,               $0D,               kb#KeyNone,        kb#KeyNone         ' 0x28
+    word    $1B,               $1B,               kb#KeyNone,        kb#KeyNone         ' 0x29
+    word    $08,               $08,               kb#KeyNone,        kb#KeyNone         ' 0x2A
+    word    $09,               $09,               kb#KeyNone,        kb#KeyNone         ' 0x2B
+    word    " ",               " ",               kb#KeyNone,        kb#KeyNone         ' 0x2C
+    word    "'",               "?",               kb#KeyNone,        kb#KeyNone         ' 0x2D
+    word    $8D,               "^",               kb#KeyNone,        kb#KeyNone         ' 0x2E
+    word    $8A,               $82,               "[",               "{"                ' 0x2F
+    word    "+",               "*",               "]",               "}"                ' 0x30
+    word    $97,               $F5,               kb#KeyNone,        kb#KeyNone         ' 0x31
+    word    $A3,               $F5,               kb#KeyNone,        kb#KeyNone         ' 0x32
+    word    $95,               $87,               "@",               kb#KeyNone         ' 0x33
+    word    $85,               $F8,               "#",               kb#KeyNone         ' 0x34
+    word    "\",               "|",               kb#KeyNone,        kb#KeyNone         ' 0x35
+    word    ",",               ";",               kb#KeyNone,        kb#KeyNone         ' 0x36
+    word    ".",               ":",               kb#KeyNone,        kb#KeyNone         ' 0x37
+    word    "-",               "_",               kb#KeyNone,        kb#KeyNone         ' 0x38
+    word    kb#KeyCapsLock,    kb#KeyCapsLock,    kb#KeyNone,        kb#KeyNone         ' 0x39
+    word    kb#KeyF1,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x3A
+    word    kb#KeyF2,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x3B
+    word    kb#KeyF3,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x3C
+    word    kb#KeyF4,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x3D
+    word    kb#KeyF5,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x3E
+    word    kb#KeyF6,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x3F
+    word    kb#KeyF7,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x40
+    word    kb#KeyF8,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x41
+    word    kb#KeyF9,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x42
+    word    kb#KeyF10,         kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x43
+    word    kb#KeyF11,         kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x44
+    word    kb#KeyF12,         kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x45
+    word    kb#KeyPrintScreen, kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x46
+    word    kb#KeyScrollLock,  kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x47
+    word    kb#KeyPause,       kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x48
+    word    kb#KeyInsert,      kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x49
+    word    kb#KeyHome,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x4A
+    word    kb#KeyPageUp,      kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x4B
+    word    kb#KeyDelete,      kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x4C
+    word    kb#KeyEnd,         kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x4D
+    word    kb#KeyPageDown,    kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x4E
+    word    kb#KeyRight,       kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x4F
+    word    kb#KeyLeft,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x50
+    word    kb#KeyDown,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x51
+    word    kb#KeyUp,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x52
+    word    kb#KeyNumLock,     kb#KeyNumLock,     kb#KeyNone,        kb#KeyNone         ' 0x53
+    word    kb#KeyKP_Divide,   kb#KeyKP_Divide,   kb#KeyNone,        kb#KeyNone         ' 0x54
+    word    kb#KeyKP_Multiply, kb#KeyKP_Multiply, kb#KeyNone,        kb#KeyNone         ' 0x55
+    word    kb#KeyKP_Subtract, kb#KeyKP_Subtract, kb#KeyNone,        kb#KeyNone         ' 0x56
+    word    kb#KeyKP_Add,      kb#KeyKP_Add,      kb#KeyNone,        kb#KeyNone         ' 0x57
+    word    kb#KeyKP_Enter,    kb#KeyKP_Enter,    kb#KeyNone,        kb#KeyNone         ' 0x58
+    word    kb#KeyEnd,         kb#KeyKP_1,        kb#KeyNone,        kb#KeyNone         ' 0x59
+    word    kb#KeyDown,        kb#KeyKP_2,        kb#KeyNone,        kb#KeyNone         ' 0x5A
+    word    kb#KeyPageDown,    kb#KeyKP_3,        kb#KeyNone,        kb#KeyNone         ' 0x5B
+    word    kb#KeyLeft,        kb#KeyKP_4,        kb#KeyNone,        kb#KeyNone         ' 0x5C
+    word    kb#KeyKP_Center,   kb#KeyKP_5,        kb#KeyNone,        kb#KeyNone         ' 0x5D
+    word    kb#KeyRight,       kb#KeyKP_6,        kb#KeyNone,        kb#KeyNone         ' 0x5E
+    word    kb#KeyHome,        kb#KeyKP_7,        kb#KeyNone,        kb#KeyNone         ' 0x5F
+    word    kb#KeyUp,          kb#KeyKP_8,        kb#KeyNone,        kb#KeyNone         ' 0x60
+    word    kb#KeyPageUp,      kb#KeyKP_9,        kb#KeyNone,        kb#KeyNone         ' 0x61
+    word    kb#KeyInsert,      kb#KeyKP_0,        kb#KeyNone,        kb#KeyNone         ' 0x62
+    word    kb#KeyDelete,      kb#KeyKP_Period,   kb#KeyNone,        kb#KeyNone         ' 0x63
+    word    "<",               ">",               kb#KeyNone,        kb#KeyNone         ' 0x64
+    word    kb#KeyApplication, kb#KeyApplication, kb#KeyNone,        kb#KeyNone         ' 0x65
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x66
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x67
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x68
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x69
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x6A
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x6B
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x6C
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x6D
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x6E
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x6F
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x70
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x71
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x72
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x73
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x74
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x75
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x76
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x77
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x78
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x79
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x7A
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x7B
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x7C
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x7D
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x7E
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x7F
