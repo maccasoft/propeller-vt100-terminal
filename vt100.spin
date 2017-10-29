@@ -310,7 +310,12 @@ PRI decode(buffer) | i, c, k, mod, ptr
         k := BYTE[buffer][i]
         if k <> 0 and lookdown(k : usb_report[2], usb_report[3], usb_report[4], usb_report[5], usb_report[6], usb_report[7]) == 0
             c := keymap.map(k, mod)
-            if c => 0 and c =< $FF
+            if (usb_report[0] & %00010001) ' CTRL
+                if c => "a" and c =< "z"
+                    ser.char(c - "a" + 1)
+                elseif c => "A" and c =< "Z"
+                    ser.char(c - "Z" + 1)
+            elseif c => 0 and c =< $FF
                 ser.char(c)
                 debug.hex(c, 2)
             elseif c => kb#KeySpace and c < kb#KeyMaxCode
