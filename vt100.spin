@@ -332,7 +332,7 @@ PRI decode(buffer) | i, c, k, mod, ptr
                 debug.hex(c, 2)
             elseif c => $100 and c < keymap#KeyMaxCode
                 debug.dec(c - $100)
-                ptr := WORD[@strTable][c - $100]
+                ptr := @@strTable[c - $100]
                 repeat strsize(ptr)
                     ser.char(byte[ptr])
                     debug.char(" ")
@@ -399,8 +399,7 @@ PRI scroll
 
 DAT
 
-strTable
-                    word    @strKeySpace
+strTable            word    @strKeySpace
                     word    @strKeyEscape
                     word    @strKeyBackspace
                     word    @strKeyTabulator
