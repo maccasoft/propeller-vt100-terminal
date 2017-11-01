@@ -12,7 +12,7 @@
 
 CON
 
-    BUFFER_LENGTH = 64                                      ' Recommended as 64 or higher, but can be 2, 4, 8, 16, 32, 64, 128 or 256.
+    BUFFER_LENGTH = 256                                     ' Recommended as 64 or higher, but can be 2, 4, 8, 16, 32, 64, 128 or 256.
     BUFFER_MASK   = BUFFER_LENGTH - 1
 
 VAR
