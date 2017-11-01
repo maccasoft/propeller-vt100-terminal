@@ -111,8 +111,8 @@ PUB start | c, x, y
                 x := txt_cursor.byte[CX]
                 y := txt_cursor.byte[CY]
 
-                x := ((x / 8) + 1) * 8
-                ifnot x //= columns                     ' wrap right
+                x += 8 - (x // 8)
+                ifnot x //= columns
                     if y < constant(rows - 1)
                         y++
                     else
@@ -134,10 +134,8 @@ PUB start | c, x, y
             $0D:
                 txt_cursor.byte[CX] := 0
             $1B:
-                c := ser.charIn
-                if c == "["
-                    decodeVT100
-            other:
+                decodeVT100
+            $00..$FF:
                 x := txt_cursor.byte[CX] + 1
                 y := txt_cursor.byte[CY]
 
@@ -152,7 +150,30 @@ PUB start | c, x, y
                 txt_cursor.byte[CX] := x
                 txt_cursor.byte[CY] := y
 
-PRI decodeVT100 | c, i, x, y
+PRI decodeVT100 | c
+
+    c := ser.charIn
+    case c
+        "[":
+            decodeANSI
+        "(", ")", "#":
+            ser.charIn
+        "7":
+            ansi_cursor_save := txt_cursor
+        "8":
+            txt_cursor.byte[CX] := ansi_cursor_save.byte[CX]
+            txt_cursor.byte[CY] := ansi_cursor_save.byte[CY]
+        "E":
+            if txt_cursor.byte[CY] < constant(rows - 1)
+                txt_cursor.byte[CY]++
+        "G":
+            txt_cursor.byte[CX] := 0
+            txt_cursor.byte[CY] := 0
+        "P":
+            if txt_cursor.byte[CY] < constant(rows - 1)
+                txt_cursor.byte[CY]++
+
+PRI decodeANSI | c, i, x, y
 
     ansi_argc := 0
     ansi_args[ansi_argc] := 0
@@ -192,16 +213,29 @@ PRI decodeVT100 | c, i, x, y
             elseif x > 0
                 x--
         "J":
-            if ansi_args[0] == 2
+            txt_attr.byte[1] := $20
+            if ansi_args[0] == 0
+                i := bcnt_raw - y * columns - x
+                wordfill(@scrn, txt_attr, i)
+            elseif ansi_args[0] == 1
+                i := bcnt_raw - y * columns - x - 1
+                wordfill(@scrn.word[i], txt_attr, bcnt - i)
+            elseif ansi_args[0] == 2
                 wordfill(@scrn, txt_attr, bcnt)
         "K":
             txt_attr.byte[1] := $20
-            if ansi_args[0] == 1
-                repeat txt_cursor.byte[CX]
-                    scrn.word[bcnt_raw - y * columns - --x] := txt_attr
-            else
-                repeat constant(columns - 1) - txt_cursor.byte[CX]
-                    scrn.word[bcnt_raw - y * columns - ++x] := txt_attr
+            if ansi_args[0] == 0
+                i := bcnt_raw - y * columns - x
+                repeat columns - x
+                    scrn.word[--i] := txt_attr
+            elseif ansi_args[0] == 1
+                i := bcnt_raw - y * columns - x - 1
+                repeat x + 1
+                    scrn.word[i++] := txt_attr
+            elseif ansi_args[0] == 2
+                i := bcnt_raw - y * columns
+                repeat columns
+                    scrn.word[--i] := txt_attr
         "H", "f":
             y := x := 0
             if ansi_args[0] > 0
@@ -219,15 +253,11 @@ PRI decodeVT100 | c, i, x, y
             repeat i from 0 to ansi_argc
                 case ansi_args[i]
                     0:
-                        txt_attr := 0
+                        txt_attr := $70
                     1:
                         txt_attr |= $80
-                    2:
-                        txt_attr &= $7F
                     5, 6:
                         txt_attr |= $01
-                    25:
-                        txt_attr &= $FE
                     30..37:
                         txt_attr := (txt_attr & $8F) | ((ansi_args[i] - 30) << 4)
                     38:
@@ -487,10 +517,10 @@ strKeyPageUp        byte    0
 strKeyDelete        byte    $7F, 0
 strKeyEnd           byte    $1B, "[K", 0
 strKeyPageDown      byte    0
-strKeyUp            byte    $1B, "[A", 0
-strKeyDown          byte    $1B, "[B", 0
-strKeyLeft          byte    $1B, "[D", 0
-strKeyRight         byte    $1B, "[C", 0
+strKeyUp            byte    $1B, "OA", 0
+strKeyDown          byte    $1B, "OB", 0
+strKeyLeft          byte    $1B, "OD", 0
+strKeyRight         byte    $1B, "OC", 0
 strKeyF1            byte    $1B, "OP", 0
 strKeyF2            byte    $1B, "OQ", 0
 strKeyF3            byte    $1B, "OR", 0
@@ -501,7 +531,7 @@ strKeyF7            byte    $1B, "OV", 0
 strKeyF8            byte    $1B, "OW", 0
 strKeyF9            byte    $1B, "OX", 0
 strKeyF10           byte    $1B, "OY", 0
-strKeyF11           byte    $1B, "OZ", 0
+strKeyF11           byte    0
 strKeyF12           byte    0
 strKeyApplication   byte    0
 strKeyCapsLock      byte    0
