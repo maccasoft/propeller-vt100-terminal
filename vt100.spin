@@ -10,26 +10,23 @@ CON
     _XINFREQ = 5_000_000
     _CLKMODE = XTAL1 + PLL16X
 
-    columns  = driver#res_x / 9
-    rows     = driver#res_y / font#height
+    columns  = vga#res_x / 9
+    rows     = vga#res_y / font#height
     bcnt     = columns * rows
-
-    rows_raw = (driver#res_y + font#height - 1) / font#height
-    bcnt_raw = columns * rows_raw
 
     vgrp     = 2                                          ' video pin group
     mode     = 0                                          ' 0: FG on/off, 1: FG :==: BG
 
     video    = (vgrp << 9 | mode << 8 | %%333_0) << 21
 
-    CURSOR_ON    = driver#CURSOR_ON
-    CURSOR_OFF   = driver#CURSOR_OFF
-    CURSOR_ULINE = driver#CURSOR_ULINE
-    CURSOR_BLOCK = driver#CURSOR_BLOCK
-    CURSOR_FLASH = driver#CURSOR_FLASH
-    CURSOR_SOLID = driver#CURSOR_SOLID
+    CURSOR_ON    = vga#CURSOR_ON
+    CURSOR_OFF   = vga#CURSOR_OFF
+    CURSOR_ULINE = vga#CURSOR_ULINE
+    CURSOR_BLOCK = vga#CURSOR_BLOCK
+    CURSOR_FLASH = vga#CURSOR_FLASH
+    CURSOR_SOLID = vga#CURSOR_SOLID
 
-    CURSOR_MASK  = driver#CURSOR_MASK
+    CURSOR_MASK  = vga#CURSOR_MASK
 
     #0, CM, CX, CY
 
@@ -49,15 +46,10 @@ CON
 
 VAR
 
-    long  scrn[bcnt_raw / 2]                              ' screen buffer
-    long  link[driver#res_m]                              ' mailbox
+    long  scrn[bcnt / 2]            ' screen buffer
+    long  link[vga#res_m]           ' mailbox
 
-    long  txt_cursor                                      ' text cursor
-    long  txt_attr                                        ' text attribute
-
-    long  ansi_argc
-    long  ansi_args[8]
-    long  ansi_cursor_save
+    long  cursor                    ' text cursor
 
     long  usb_stack[128]
     byte  usb_buf[64]
@@ -67,230 +59,431 @@ VAR
 OBJ
 
     hc     : "usb-fs-host"
-    ser    : "com.serial.terminal"
+    ser    : "com.serial"
     debug  : "com.serial.terminal"
-    driver : "waitvid.80x25.driver"
+    vga    : "waitvid.80x25.driver"
     font   : "generic8x16-2font"
     kb : "keyboard"
     'keymap : "keymap_us"
     keymap : "keymap_it"
     'keymap : "keymap_uk"
 
-PUB start | c, x, y
+PUB start | temp
 
     debug.Start(115200)
     ser.StartRxTx(8, 9, 0, 115200)
 
-    txt_attr := $20_70
-    wordfill(@scrn, txt_attr, bcnt)
-    txt_cursor.byte[CX] := 0
-    txt_cursor.byte[CY] := 0
+    wordfill(@scrn, $20_70, bcnt)
+    cursor.byte[CX] := 0
+    cursor.byte[CY] := 0
+    cursor.byte{CM} := (cursor.byte{CM} & constant(!CURSOR_MASK)) | constant(CURSOR_ON | CURSOR_BLOCK | CURSOR_FLASH)
 
     link{0} := video | @scrn{0}
     link[1] := font#height << 24 | font.addr
-    link[2] := @txt_cursor
-    driver.init(-1, @link{0})
+    link[2] := @cursor
+    vga.init(-1, @link{0})
 
-    setCursor(CURSOR_ON|CURSOR_BLOCK|CURSOR_FLASH)
+    cognew(usb_hid, @usb_stack)
 
-    cognew(start_usb, @usb_stack)
+    temp := ser.GetMailbox
+    rx_head := temp
+    rx_tail := temp + 4
+    rx_buffer := LONG[temp][8]
 
-    repeat
-        c := ser.rxCheck
-        if c == -1
-            c := debug.rxCheck
-            if c <> -1
-                ser.char(c)
-            next
+    txt_cursor := @cursor
+    txt_scrn := @scrn + (bcnt << 1)
 
-        case c
-            $08:
-                if txt_cursor.byte[CX] > 0
-                    txt_cursor.byte[CX]--
-            $09:
-                x := txt_cursor.byte[CX]
-                y := txt_cursor.byte[CY]
+    coginit(cogid, @entry, 0)
 
-                x += 8 - (x // 8)
-                ifnot x //= columns
-                    if y < constant(rows - 1)
-                        y++
-                    else
-                        scroll
 
-                txt_cursor.byte[CX] := x
-                txt_cursor.byte[CY] := y
+DAT
 
-            $0A:
-                if txt_cursor.byte[CY] < constant(rows - 1)
-                    txt_cursor.byte[CY]++
-                else
-                    scroll
-            $0C:
-                txt_attr.byte[1] := $20
-                wordfill(@scrn, txt_attr, bcnt)
-                txt_cursor.byte[CX] := 0
-                txt_cursor.byte[CY] := 0
-            $0D:
-                txt_cursor.byte[CX] := 0
-            $1B:
-                decodeVT100
-            $00..$FF:
-                x := txt_cursor.byte[CX] + 1
-                y := txt_cursor.byte[CY]
+                    org
 
-                txt_attr.byte[1] := c
-                scrn.word[bcnt_raw - y * columns - x] := txt_attr
-                ifnot x //= columns                     ' wrap right
-                    if y < constant(rows - 1)
-                        y++
-                    else
-                        scroll
+entry
+                    call    #charIn
+                    cmp     ch, #$08 wz             ' backspace
+        if_z        jmp     #_bs
+                    cmp     ch, #$09 wz             ' tab
+        if_z        jmp     #_tab
+                    cmp     ch, #$0A wz             ' line feed
+        if_z        jmp     #_lf
+                    cmp     ch, #$0C wz             ' form feed
+        if_z        jmp     #_ff
+                    cmp     ch, #$0D wz             ' carriage return
+        if_z        jmp     #_cr
+                    cmp     ch, #$1B wz             ' esc
+        if_z        jmp     #_esc
 
-                txt_cursor.byte[CX] := x
-                txt_cursor.byte[CY] := y
+                    ' write ch to vga buffer
 
-PRI decodeVT100 | c
+                    add     x, #1
 
-    c := ser.charIn
-    case c
-        "[":
-            decodeANSI
-        "(", ")", "#":
-            ser.charIn
-        "7":
-            ansi_cursor_save := txt_cursor
-        "8":
-            txt_cursor.byte[CX] := ansi_cursor_save.byte[CX]
-            txt_cursor.byte[CY] := ansi_cursor_save.byte[CY]
-        "E":
-            if txt_cursor.byte[CY] < constant(rows - 1)
-                txt_cursor.byte[CY]++
-        "G":
-            txt_cursor.byte[CX] := 0
-            txt_cursor.byte[CY] := 0
-        "P":
-            if txt_cursor.byte[CY] < constant(rows - 1)
-                txt_cursor.byte[CY]++
+                    mov     t1, y                   ' t2 := y * 80
+                    shl     t1, #4
+                    mov     t2, t1
+                    shl     t2, #2
+                    add     t2, t1
+                    add     t2, x                   ' t2 := t1 + x
+                    shl     t2, #1
 
-PRI decodeANSI | c, i, x, y
+                    mov     t1, txt_scrn
+                    sub     t1, t2
+                    mov     a, ch
+                    shl     a, #8
+                    or      a, txt_attr
+                    wrword  a, t1
 
-    ansi_argc := 0
-    ansi_args[ansi_argc] := 0
+                    cmpsub  x, #columns wc,wz       ' wraps right
+        if_nc       jmp     #_done
+                    cmp     y, #rows-1 wc,wz
+        if_c        add     y, #1
+        if_nc       call    #scroll
 
-    repeat
-        c := ser.charIn
-        case c
-            "0".."9":
-                ansi_args[ansi_argc] := ansi_args[ansi_argc] * 10 + (c - $30)
-            ";":
-                ansi_argc++
-                ansi_args[ansi_argc] := 0
-    until (c => "a" and c =< "z") or (c => "A" and c =< "Z")
+_done               mov     t1, txt_cursor          ' updates cursor position
+                    add     t1, #CX
+                    wrbyte  x, t1
+                    add     t1, #1
+                    wrbyte  y, t1
+                    jmp     #entry
 
-    x := txt_cursor.byte[CX]
-    y := txt_cursor.byte[CY]
+_bs                 cmp     x, #0 wz
+        if_nz       sub     x, #1
+                    jmp     #_done
 
-    case c
-        "A":
-            if ansi_args[0] > 0
-                y := y - ansi_args[0] #> 0
-            elseif y > 0
-                y--
-        "B":
-            if ansi_args[0] > 0
-                y := y + ansi_args[0] <# constant(rows - 1)
-            elseif y < constant(rows - 1)
-                y++
-        "C":
-            if ansi_args[0] > 0
-                x := x + ansi_args[0] <# constant(columns - 1)
-            elseif x < constant(columns - 1)
-                x++
-        "D":
-            if ansi_args[0] > 0
-                x := x - ansi_args[0] #> 0
-            elseif x > 0
-                x--
-        "J":
-            txt_attr.byte[1] := $20
-            if ansi_args[0] == 0
-                i := bcnt_raw - y * columns - x
-                wordfill(@scrn, txt_attr, i)
-            elseif ansi_args[0] == 1
-                i := bcnt_raw - y * columns - x - 1
-                wordfill(@scrn.word[i], txt_attr, bcnt - i)
-            elseif ansi_args[0] == 2
-                wordfill(@scrn, txt_attr, bcnt)
-        "K":
-            txt_attr.byte[1] := $20
-            if ansi_args[0] == 0
-                i := bcnt_raw - y * columns - x
-                repeat columns - x
-                    scrn.word[--i] := txt_attr
-            elseif ansi_args[0] == 1
-                i := bcnt_raw - y * columns - x - 1
-                repeat x + 1
-                    scrn.word[i++] := txt_attr
-            elseif ansi_args[0] == 2
-                i := bcnt_raw - y * columns
-                repeat columns
-                    scrn.word[--i] := txt_attr
-        "H", "f":
-            y := x := 0
-            if ansi_args[0] > 0
-                y := (ansi_args[0] - 1) // rows
-            if ansi_argc => 1 and ansi_args[1] > 0
-                x := (ansi_args[1] - 1) // columns
-        "m":
-            if ansi_argc => 2 and ansi_args[1] == 5
-                if ansi_args[0] == 38
-                    txt_attr := (txt_attr & $0F) | (ansi_args[2] << 4)
-                if ansi_args[0] == 48
-                    txt_attr := (txt_attr & $F0) | ansi_args[2]
-                    txt_attr &= $FE
+_tab                andn    x, #7
+                    add     x, #8
+                    cmpsub  x, #columns wc,wz
+        if_nc       jmp     #_done
+                    cmp     y, #rows-1 wc,wz
+        if_c        add     y, #1
+        if_nc       call    #scroll
+                    jmp     #_done
 
-            repeat i from 0 to ansi_argc
-                case ansi_args[i]
-                    0:
-                        txt_attr := $70
-                    1:
-                        txt_attr |= $80
-                    5, 6:
-                        txt_attr |= $01
-                    30..37:
-                        txt_attr := (txt_attr & $8F) | ((ansi_args[i] - 30) << 4)
-                    38:
-                        if ansi_args[i + 1] == 5
-                            txt_attr := (txt_attr & $0F) | ((ansi_args[i + 2] & $0F) << 4)
-                            i += 2
-                    39:
-                        txt_attr := (txt_attr & $0F) | $70
-                    40..47:
-                        txt_attr := (txt_attr & $F1) | ((ansi_args[i] - 40) << 1)
-                    48:
-                        if ansi_args[i + 1] == 5
-                            txt_attr := (txt_attr & $F1) | ((ansi_args[i + 2] & $07) << 1)
-                            i += 2
-                    49:
-                        txt_attr := (txt_attr & $F1)
-        "n":
-            if ansi_args[0] == 6
-                ser.str(string($1B, "["))
-                ser.dec(txt_cursor.byte[CY] + 1)
-                ser.char(";")
-                ser.dec(txt_cursor.byte[CX] + 1)
-                ser.char("m")
-        "s":
-            ansi_cursor_save := txt_cursor
-        "u":
-            x := ansi_cursor_save.byte[CX]
-            y := ansi_cursor_save.byte[CY]
+_lf                 add     y, #1
+                    cmp     y, #rows wc,wz
+        if_nz       jmp     #_done
+                    sub     y, #1
+                    call    #scroll
+                    jmp     #_done
 
-    txt_cursor.byte[CX] := x
-    txt_cursor.byte[CY] := y
+_ff                 mov     x, #0
+                    mov     y, #0
+_cls                mov     t1, txt_scrn
+                    sub     t1, #2
+                    mov     t3, txt_bcnt
+                    mov     a, #$20
+                    shl     a, #8
+                    or      a, txt_attr
+:l1                 wrword  a, t1
+                    sub     t1, #2
+                    djnz    t3, #:l1
+                    jmp     #_done
 
-PUB start_usb | retval, ifd, epd
+_cr                 mov     x, #0
+                    jmp     #_done
+
+_esc                mov     argc, #0
+                    mov     args, #0
+                    mov     args+1, #0
+                    movd    :d1, #args
+                    movd    :d2, #args
+                    movs    :s1, #args
+
+                    call    #charIn
+                    cmp     ch, #"A" wz             ' VT-52 compatibility
+        if_z        jmp     #_up
+                    cmp     ch, #"B" wz
+        if_z        jmp     #_down
+                    cmp     ch, #"C" wz
+        if_z        jmp     #_right
+                    cmp     ch, #"D" wz
+        if_z        jmp     #_left
+                    cmp     ch, #"H" wz
+        if_z        jmp     #_cup
+                    cmp     ch, #"J" wz
+        if_z        jmp     #_ed
+                    cmp     ch, #"K" wz
+        if_z        jmp     #_el
+                    cmp     ch, #"7" wz
+        if_z        jmp     #_save
+                    cmp     ch, #"8" wz
+        if_z        jmp     #_restore
+                    cmp     ch, #"[" wz
+        if_nz       jmp     #_done
+
+:l2                 call    #charIn
+                    cmp     ch, #"0" wc,wz
+        if_c        jmp     #:l1
+                    cmp     ch, #"9" wc,wz
+        if_nc       jmp     #:l1
+:s1                 mov     t1, 0-0                 ' multiply x 10
+                    shl     t1, #1
+                    mov     t2, t1
+                    shl     t2, #2
+                    add     t2, t1
+                    sub     ch, #"0"                ' adds digit
+                    add     t2, ch
+:d1                 mov     0-0, t2
+                    jmp     #:l2
+:l1                 cmp     ch, #";" wz
+        if_nz       jmp     #:l3
+                    add     argc, #1
+                    add     :d1, incdst
+                    add     :d2, incdst
+                    add     :s1, #1
+:d2                 mov     0-0, #0
+                    jmp     #:l2
+
+:l3                 cmp     ch, #"A" wz
+        if_z        jmp     #_up
+                    cmp     ch, #"B" wz
+        if_z        jmp     #_down
+                    cmp     ch, #"C" wz
+        if_z        jmp     #_right
+                    cmp     ch, #"D" wz
+        if_z        jmp     #_left
+                    cmp     ch, #"H" wz
+        if_z        jmp     #_cup
+                    cmp     ch, #"J" wz
+        if_z        jmp     #_ed
+                    cmp     ch, #"K" wz
+        if_z        jmp     #_el
+                    cmp     ch, #"f" wz
+        if_z        jmp     #_cup
+                    cmp     ch, #"m" wz
+        if_z        jmp     #_attr
+                    cmp     ch, #"s" wz
+        if_z        jmp     #_save
+                    cmp     ch, #"u" wz
+        if_z        jmp     #_restore
+
+                    jmp     #_done
+
+_up                 cmp     args, #0 wz
+        if_z        add     args, #1
+                    sub     y, args wc
+        if_c        mov     y, #0
+                    jmp     #_done
+
+_down               cmp     args, #0 wz
+        if_z        add     args, #1
+                    add     y, args
+                    cmp     y, #rows wc
+        if_nc       mov     y, #rows-1
+                    jmp     #_done
+
+_right              cmp     args, #0 wz
+        if_z        add     args, #1
+                    add     x, args
+                    cmp     x, #columns wc
+        if_nc       mov     x, #columns-1
+                    jmp     #_done
+
+_left               cmp     args, #0 wz
+        if_z        add     args, #1
+                    sub     x, args wc
+        if_c        mov     x, #0
+                    jmp     #_done
+
+_cup                mov     y, args
+                    cmpsub  y, #1
+                    mov     x, args+1
+                    cmpsub  x, #1
+                    jmp     #_done
+
+_save               mov     txt_cursor_s, y
+                    shl     txt_cursor_s, #16
+                    or      txt_cursor_s, x
+                    jmp     #_done
+
+_restore            mov     x, txt_cursor_s
+                    and     x, #$1FF
+                    mov     y, txt_cursor_s
+                    shr     y, #16
+                    jmp     #_done
+
+_attr               movs    :l1, #args
+                    add     argc, #1
+
+:l1                 mov     a, 0-0
+                    cmp     a, #0 wz                ' reset attr
+        if_z        mov     txt_attr, #$70
+                    cmp     a, #1 wz                ' bright
+        if_z        or      txt_attr, #$80
+                    cmp     a, #5 wz                ' blink
+        if_z        or      txt_attr, #$01
+                    cmp     a, #30 wc               ' foreground
+        if_c        jmp     #:l2
+                    cmp     a, #38 wc
+        if_nc       jmp     #:l2
+                    sub     a, #30
+                    shl     a, #4
+                    and     txt_attr, #$8F
+                    or      txt_attr, a
+                    jmp     #:l3
+:l2                 cmp     a, #40 wc               ' background
+        if_c        jmp     #:l4
+                    cmp     a, #48 wc
+        if_nc       jmp     #:l4
+                    sub     a, #40
+                    shl     a, #1
+                    and     txt_attr, #$F1
+                    or      txt_attr, a
+                    jmp     #:l3
+:l4                 cmp     a, #39 wz               ' reset foreground
+        if_z        and     txt_attr, #$0F
+        if_z        or      txt_attr, #$70
+                    cmp     a, #49 wz               ' reset background
+        if_z        and     txt_attr, #$F1
+
+:l3                 add     :l1, #1
+                    djnz    argc, #:l1
+                    jmp     #_done
+
+_ed                 cmp     args, #2 wz             ' clear entire screen
+        if_z        jmp     #_cls
+
+                    mov     t1, y                   ' t2 := y * 80
+                    shl     t1, #4
+                    mov     t2, t1
+                    shl     t2, #2
+                    add     t2, t1
+                    add     t2, x                   ' t2 := t2 + x
+                    mov     t1, txt_scrn
+                    sub     t1, t2
+                    sub     t1, t2                  ' t1 := pointer to cursor location
+
+                    mov     a, #$20
+                    shl     a, #8
+                    or      a, txt_attr
+
+                    cmp     args, #1 wz
+        if_z        jmp     #:ed1
+                    cmp     args, #0 wz
+        if_z        jmp     #:ed0
+                    jmp     #_done
+:ed0                mov     t3, txt_bcnt
+                    sub     t3, t2
+                    sub     t1, #2                  ' clear screen from cursor down
+                    wrword  a, t1
+                    djnz    t3, #$-2
+                    jmp     #_done
+:ed1                mov     t3, t2                  ' clear screen from cursor up
+                    add     t3, #1
+                    sub     t1, #2
+                    wrword  a, t1
+                    add     t1, #2
+                    djnz    t3, #$-2
+                    jmp     #_done
+
+_el                 mov     t1, y                   ' t1 := y * 80
+                    shl     t1, #4
+                    mov     t2, t1
+                    shl     t2, #2
+                    add     t2, t1
+                    mov     t1, txt_scrn
+                    sub     t1, t2
+                    sub     t1, t2                  ' t1 := pointer to begin of line at cursor
+
+                    mov     a, #$20
+                    shl     a, #8
+                    or      a, txt_attr
+
+                    cmp     args, #0 wz
+        if_z        jmp     #:el0
+                    cmp     args, #1 wz
+        if_z        jmp     #:el1
+                    cmp     args, #2 wz
+        if_z        jmp     #:el2
+                    jmp     #_done
+:el0                sub     t1, x                   ' clear line from cursor right
+                    sub     t1, x
+                    mov     t3, #columns
+                    sub     t3, x
+                    sub     t1, #2
+                    wrword  a, t1
+                    djnz    t3, #$-2
+                    jmp     #_done
+:el1                mov     t3, x                   ' clear line from cursor left
+                    add     t3, #1
+                    sub     t1, #2
+                    wrword  a, t1
+                    djnz    t3, #$-2
+                    jmp     #_done
+:el2                mov     t3, #columns            ' clear entire line
+                    sub     t1, #2
+                    wrword  a, t1
+                    djnz    t3, #$-2
+                    jmp     #_done
+
+' Receive single-byte character. Waits until character received.
+'
+' Returns: $00..$FF in ch
+
+charIn              rdlong  t1, rx_head
+                    rdlong  t2, rx_tail
+                    cmp     t1, t2 wz
+        if_z        jmp     #$-3
+                    mov     t1, rx_buffer
+                    add     t1, t2
+                    rdbyte  ch, t1
+                    add     t2, #1
+                    and     t2, #ser#BUFFER_MASK
+                    wrlong  t2, rx_tail
+charIn_ret          ret
+
+' Scrolls entire screen one row up
+
+scroll              mov     t1, txt_scrn
+                    sub     t1, #2
+                    mov     t2, t1
+                    sub     t2, #columns << 1
+                    mov     t3, txt_bcnt
+                    sub     t3, #columns
+:l1                 rdword  a, t2
+                    sub     t2, #2
+                    wrword  a, t1
+                    sub     t1, #2
+                    djnz    t3, #:l1
+
+                    mov     a, #$20
+                    shl     a, #8
+                    or      a, txt_attr
+                    mov     t3, #columns
+:l2                 wrword  a, t1
+                    sub     t1, #2
+                    djnz    t3, #:l2
+
+scroll_ret          ret
+
+incdst              long    1 << 9
+
+rx_buffer           long    0
+rx_head             long    0
+rx_tail             long    0
+
+txt_cursor          long    0
+txt_scrn            long    0
+txt_bcnt            long    bcnt
+txt_attr            long    $70
+txt_cursor_s        long    0
+
+x                   long    0
+y                   long    0
+
+a                   res     1
+ch                  res     1
+t1                  res     1
+t2                  res     1
+t3                  res     1
+
+argc                res     1
+args                res     8
+
+                    fit
+
+PUB usb_hid | retval, ifd, epd
 
     debug.str(string(debug#CS, "USB Started", debug#NL, debug#LF))
 
@@ -332,12 +525,12 @@ PUB start_usb | retval, ifd, epd
 
             elseif not showError(retval, string("Read Error"))
                 ' Successful transfer
-                debug.char("[")
-                debug.dec(retval)
-                debug.str(string(" bytes] "))
-                hexDump(@usb_buf, retval)
+                'debug.char("[")
+                'debug.dec(retval)
+                'debug.str(string(" bytes] "))
+                'hexDump(@usb_buf, retval)
                 decode(@usb_buf)
-                debug.str(string(debug#NL, debug#LF))
+                'debug.str(string(debug#NL, debug#LF))
 
         waitcnt(CNT + CLKFREQ)
 
@@ -420,37 +613,6 @@ PRI showError(error, message) : bool
         debug.str(string(")", debug#NL))
         return 1
     return 0
-
-PRI printText(s)
-
-  repeat strsize(s)
-      printChar(byte[s++])
-
-PRI printChar(c) | x, y
-
-  x := txt_cursor.byte[CX] + 1
-  y := txt_cursor.byte[CY]
-
-  txt_attr.byte[1] := c
-  scrn.word[bcnt_raw - y * columns - x] := txt_attr
-  ifnot x //= columns                                   ' wrap right
-    if y < constant(rows - 1)
-      y++
-    else
-      scroll
-
-  txt_cursor.byte[CX] := x
-  txt_cursor.byte[CY] := y
-
-PRI setCursor(setup)
-
-  txt_cursor.byte{CM} := (txt_cursor.byte{CM} & constant(!CURSOR_MASK)) | setup
-
-PRI scroll
-
-    txt_attr.byte[1] := $20
-    wordmove(@scrn.word[columns], @scrn.word[0], constant(bcnt - columns))
-    wordfill(@scrn.word[0], txt_attr, columns)
 
 DAT
 

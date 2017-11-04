@@ -12,7 +12,7 @@
 
 CON
 
-    BUFFER_LENGTH = 256                                     ' Recommended as 64 or higher, but can be 2, 4, 8, 16, 32, 64, 128 or 256.
+    BUFFER_LENGTH = 64                                      ' Recommended as 64 or higher, but can be 2, 4, 8, 16, 32, 64, 128 or 256.
     BUFFER_MASK   = BUFFER_LENGTH - 1
 
 VAR
@@ -131,6 +131,10 @@ PUB RxCheck
     if rx_tail <> rx_head
         result := rx_buffer[rx_tail]
         rx_tail := (rx_tail + 1) & BUFFER_MASK
+
+PUB GetMailbox
+
+    return @rx_head
 
 DAT
                         org
