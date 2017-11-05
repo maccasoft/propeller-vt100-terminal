@@ -525,7 +525,7 @@ PUB usb_hid | retval, ifd, epd
     debug.str(string(debug#CS, "USB Started", debug#NL, debug#LF))
 
     repeat
-        if showError(\hc.Enumerate, string("Can't enumerate device"))
+        if \hc.Enumerate < 0
             waitcnt(CNT + CLKFREQ)
             next
 
@@ -536,13 +536,21 @@ PUB usb_hid | retval, ifd, epd
         debug.str(string(debug#NL, debug#LF))
 
         if showError(\hc.Configure, string("Error configuring device"))
-            waitcnt(CNT + CLKFREQ)
+            repeat
+                waitcnt(CNT + CLKFREQ)
+            while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
+            debug.str(string("Device disconnected", debug#NL, debug#LF))
             next
 
         if not (ifd := hc.FindInterface(3))
             debug.str(string("Device has no HID interfaces", debug#NL, debug#LF))
-            waitcnt(CNT + CLKFREQ)
+            repeat
+                waitcnt(CNT + CLKFREQ)
+            while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
+            debug.str(string("Device disconnected", debug#NL, debug#LF))
             next
+        else
+            debug.str(string("Device has HID interfaces", debug#NL, debug#LF))
 
         ' First endpoint on the first HID interface
         epd := hc.NextEndpoint(ifd)
@@ -569,6 +577,7 @@ PUB usb_hid | retval, ifd, epd
                 decode(@usb_buf)
                 'debug.str(string(debug#NL, debug#LF))
 
+        debug.str(string("Device disconnected", debug#NL, debug#LF))
         waitcnt(CNT + CLKFREQ)
 
 PRI decode(buffer) | i, c, k, mod, ptr
