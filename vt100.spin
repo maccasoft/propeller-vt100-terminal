@@ -63,7 +63,7 @@ OBJ
     debug  : "com.serial.terminal"
     vga    : "waitvid.80x25.driver"
     font   : "generic8x16-2font"
-    kb : "keyboard"
+    kb     : "keyboard"
     'keymap : "keymap_us"
     keymap : "keymap_it"
     'keymap : "keymap_uk"
@@ -89,6 +89,14 @@ PUB start | temp
     rx_head := temp
     rx_tail := temp + 4
     rx_buffer := LONG[temp][8]
+    tx_head := temp + 8
+    tx_tail := temp + 12
+    tx_buffer := rx_buffer + ser#BUFFER_LENGTH
+
+    temp := debug.GetMailbox
+    aux_rx_head := temp
+    aux_rx_tail := temp + 4
+    aux_rx_buffer := LONG[temp][8]
 
     txt_cursor := @cursor
     txt_scrn := @scrn + (bcnt << 1)
@@ -421,11 +429,32 @@ _el                 mov     t1, y                   ' t1 := y * 80
 '
 ' Returns: $00..$FF in ch
 
-charIn              rdlong  t1, rx_head
+charIn              rdlong  t1, rx_head                 ' check main serial
                     rdlong  t2, rx_tail
                     cmp     t1, t2 wz
-        if_z        jmp     #$-3
-                    mov     t1, rx_buffer
+        if_nz       jmp     #:l1
+
+                    rdlong  t1, aux_rx_head             ' check auxiliary serial
+                    rdlong  t2, aux_rx_tail
+                    cmp     t1, t2 wz
+        if_z        jmp     #charIn
+                    mov     t1, aux_rx_buffer
+                    add     t1, t2
+                    rdbyte  ch, t1
+                    add     t2, #1
+                    and     t2, #ser#BUFFER_MASK
+                    wrlong  t2, aux_rx_tail
+
+                    rdlong  t2, tx_head                 ' echo char received from aux to main serial
+                    mov     t1, tx_buffer
+                    add     t1, t2
+                    wrbyte  ch, t1
+                    add     t2, #1
+                    and     t2, #ser#BUFFER_MASK
+                    wrlong  t2, tx_head
+                    jmp     #charIn
+
+:l1                 mov     t1, rx_buffer
                     add     t1, t2
                     rdbyte  ch, t1
                     add     t2, #1
@@ -462,6 +491,14 @@ incdst              long    1 << 9
 rx_buffer           long    0
 rx_head             long    0
 rx_tail             long    0
+
+tx_buffer           long    0
+tx_head             long    0
+tx_tail             long    0
+
+aux_rx_buffer       long    0
+aux_rx_head         long    0
+aux_rx_tail         long    0
 
 txt_cursor          long    0
 txt_scrn            long    0

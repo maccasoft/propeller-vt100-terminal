@@ -317,3 +317,7 @@ PUB ReadLine(line, maxline) : size | c
             other:  if size < maxline
                         byte[line][size++] := c
                         Char(c)
+
+PUB GetMailbox
+
+    return ser.GetMailbox
