@@ -10,8 +10,8 @@ CON
     _XINFREQ = 5_000_000
     _CLKMODE = XTAL1 + PLL16X
 
-    columns  = vga#res_x / 9
-    rows     = vga#res_y / font#height
+    columns  = vga#txt_columns
+    rows     = vga#txt_rows
     bcnt     = columns * rows
 
     vgrp     = 2                                          ' video pin group
