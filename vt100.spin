@@ -177,14 +177,18 @@ _lf                 add     y, #1
 
 _ff                 mov     x, #0
                     mov     y, #0
-_cls                mov     t1, txt_scrn
-                    sub     t1, #2
+_cls                mov     t1, #$20
+                    shl     t1, #8
+                    or      t1, txt_attr
+                    mov     a, t1
+                    shl     a, #16
+                    or      a, t1
+                    mov     t1, txt_scrn
+                    sub     t1, #4
                     mov     t3, txt_bcnt
-                    mov     a, #$20
-                    shl     a, #8
-                    or      a, txt_attr
-:l1                 wrword  a, t1
-                    sub     t1, #2
+                    shr     t3, #1
+:l1                 wrlong  a, t1
+                    sub     t1, #4
                     djnz    t3, #:l1
                     jmp     #_done
 
@@ -465,23 +469,27 @@ charIn_ret          ret
 ' Scrolls entire screen one row up
 
 scroll              mov     t1, txt_scrn
-                    sub     t1, #2
+                    sub     t1, #4
                     mov     t2, t1
                     sub     t2, #columns << 1
                     mov     t3, txt_bcnt
                     sub     t3, #columns
-:l1                 rdword  a, t2
-                    sub     t2, #2
-                    wrword  a, t1
-                    sub     t1, #2
+                    shr     t3, #1
+:l1                 rdlong  a, t2
+                    sub     t2, #4
+                    wrlong  a, t1
+                    sub     t1, #4
                     djnz    t3, #:l1
 
-                    mov     a, #$20
-                    shl     a, #8
-                    or      a, txt_attr
-                    mov     t3, #columns
-:l2                 wrword  a, t1
-                    sub     t1, #2
+                    mov     t2, #$20
+                    shl     t2, #8
+                    or      t2, txt_attr
+                    mov     a, t2
+                    shl     a, #16
+                    or      a, t2
+                    mov     t3, #columns >> 1
+:l2                 wrlong  a, t1
+                    sub     t1, #4
                     djnz    t3, #:l2
 
 scroll_ret          ret
