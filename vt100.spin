@@ -201,6 +201,7 @@ _esc                mov     argc, #0
                     movd    :d1, #args
                     movd    :d2, #args
                     movs    :s1, #args
+                    movs    _attr, #args
 
                     call    #charIn
                     cmp     ch, #"A" wz             ' VT-52 compatibility
@@ -315,43 +316,95 @@ _restore            mov     x, txt_cursor_s
                     shr     y, #16
                     jmp     #_done
 
-_attr               movs    :l1, #args
-                    add     argc, #1
-
-:l1                 mov     a, 0-0
+_attr               mov     a, 0-0
                     cmp     a, #0 wz                ' reset attr
-        if_z        mov     txt_attr, #$70
+        if_z        jmp     #:reset
                     cmp     a, #1 wz                ' bright
-        if_z        or      txt_attr, #$80
+        if_z        jmp     #:bright
                     cmp     a, #5 wz                ' blink
-        if_z        or      txt_attr, #$01
+        if_z        jmp     #:blink
                     cmp     a, #30 wc               ' foreground
         if_c        jmp     #:l2
-                    cmp     a, #38 wc
-        if_nc       jmp     #:l2
-                    sub     a, #30
+                    cmp     a, #38 wc,wz
+        if_c        jmp     #:fg
+        if_z        jmp     #:ext_fg
+:l2                 cmp     a, #39 wz               ' reset foreground
+        if_z        jmp     #:res_fg
+                    cmp     a, #40 wc               ' background
+        if_c        jmp     #:l3
+                    cmp     a, #48 wc,wz
+        if_c        jmp     #:bg
+        if_z        jmp     #:ext_bg
+:l3                 cmp     a, #49 wz               ' reset background
+        if_z        jmp     #:res_bg
+
+:l1                 add     _attr, #1
+                    sub     argc, #1 wc
+        if_nc       jmp     #_attr
+                    jmp     #_done
+
+:reset              mov     txt_attr, #$70
+                    jmp     #:l1
+:bright             or      txt_attr, #$80
+                    jmp     #:l1
+:blink              or      txt_attr, #$01
+                    jmp     #:l1
+:fg                 sub     a, #30
                     shl     a, #4
                     and     txt_attr, #$8F
                     or      txt_attr, a
-                    jmp     #:l3
-:l2                 cmp     a, #40 wc               ' background
-        if_c        jmp     #:l4
-                    cmp     a, #48 wc
-        if_nc       jmp     #:l4
-                    sub     a, #40
+                    jmp     #:l1
+:ext_fg             add     _attr, #1
+                    movs    :xs1, _attr
+                    add     _attr, #1
+                    movs    :xs2, _attr
+                    sub     argc, #2
+:xs1                mov     a, 0-0
+                    cmp     a, #2 wz                ' 38;2;r;g;b not supported, skip
+        if_z        jmp     #:xs3
+                    cmp     a, #5 wz                ' 38;5;n supported for n <= 15
+        if_nz       jmp     #:l1
+:xs2                mov     a, 0-0
+                    cmp     a, #16 wc
+        if_nc       jmp     #:l1
+                    shl     a, #4
+                    and     txt_attr, #$0F
+                    or      txt_attr, a
+                    jmp     #:l1
+:xs3                add     _attr, #2
+                    sub     argc, #2
+                    jmp     #:l1
+:res_fg             and     txt_attr, #$0F
+                    or      txt_attr, #$70
+                    jmp     #:l1
+:bg                 sub     a, #40
                     shl     a, #1
                     and     txt_attr, #$F1
                     or      txt_attr, a
-                    jmp     #:l3
-:l4                 cmp     a, #39 wz               ' reset foreground
-        if_z        and     txt_attr, #$0F
-        if_z        or      txt_attr, #$70
-                    cmp     a, #49 wz               ' reset background
-        if_z        and     txt_attr, #$F1
-
-:l3                 add     :l1, #1
-                    djnz    argc, #:l1
-                    jmp     #_done
+                    jmp     #:l1
+:ext_bg             add     _attr, #1
+                    movs    :xs4, _attr
+                    add     _attr, #1
+                    movs    :xs5, _attr
+                    sub     argc, #2
+:xs4                mov     a, 0-0
+                    cmp     a, #2 wz                ' 48;2;r;g;b not supported, skip
+        if_z        jmp     #:xs6
+                    cmp     a, #5 wz                ' 48;5;n supported for n <= 7
+        if_nz       jmp     #:l1
+:xs5                mov     a, 0-0
+                    cmp     a, #8 wc
+        if_nc       jmp     #:l1
+                    shl     a, #1
+                    and     txt_attr, #$F1
+                    or      txt_attr, a
+                    jmp     #:l1
+:xs6                add     _attr, #2
+                    sub     argc, #2
+                    jmp     #:l1
+                    jmp     #:l1
+:res_bg             and     txt_attr, #$F1
+                    jmp     #:l1
 
 _ed                 cmp     args, #2 wz             ' clear entire screen
         if_z        jmp     #_cls
