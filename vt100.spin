@@ -202,6 +202,7 @@ _esc                mov     argc, #0
                     movd    :d2, #args
                     movs    :s1, #args
                     movs    _attr, #args
+                    mov     ch_mod, #0
 
                     call    #charIn
                     cmp     ch, #"A" wz             ' VT-52 compatibility
@@ -228,7 +229,7 @@ _esc                mov     argc, #0
 :l2                 call    #charIn
                     cmp     ch, #"0" wc,wz
         if_c        jmp     #:l1
-                    cmp     ch, #"9" wc,wz
+                    cmp     ch, #"9"+1 wc,wz
         if_nc       jmp     #:l1
 :s1                 mov     t1, 0-0                 ' multiply x 10
                     shl     t1, #1
@@ -248,7 +249,10 @@ _esc                mov     argc, #0
 :d2                 mov     0-0, #0
                     jmp     #:l2
 
-:l3                 cmp     ch, #"A" wz
+:l3                 cmp     ch, #"?" wz
+        if_z        mov     ch_mod, ch
+        if_z        jmp     #:l2
+                    cmp     ch, #"A" wz
         if_z        jmp     #_up
                     cmp     ch, #"B" wz
         if_z        jmp     #_down
@@ -266,10 +270,19 @@ _esc                mov     argc, #0
         if_z        jmp     #_cup
                     cmp     ch, #"m" wz
         if_z        jmp     #_attr
+                    cmp     ch, #"n" wz
+        if_z        jmp     #_cursor_report
                     cmp     ch, #"s" wz
         if_z        jmp     #_save
                     cmp     ch, #"u" wz
         if_z        jmp     #_restore
+
+                    cmp     ch_mod, #"?" wz         ' private escape sequences
+        if_nz       jmp     #_done
+                    cmp     ch, #"h" wz
+        if_z        jmp     #_cursor_onoff
+                    cmp     ch, #"l" wz
+        if_z        jmp     #_cursor_onoff
 
                     jmp     #_done
 
@@ -482,6 +495,34 @@ _el                 mov     t1, y                   ' t1 := y * 80
                     djnz    t3, #$-2
                     jmp     #_done
 
+_cursor_onoff       cmp     args, #25 wz
+        if_nz       jmp     #_done
+                    rdbyte  t1, txt_cursor
+                    andn    t1, #CURSOR_MASK
+                    cmp     ch, #"l" wz
+        if_z        or      t1, #CURSOR_OFF
+        if_nz       or      t1, #(CURSOR_ON | CURSOR_BLOCK | CURSOR_FLASH)
+                    wrbyte  t1, txt_cursor
+                    jmp     #_done
+
+_cursor_report      cmp     args, #6 wz
+        if_nz       jmp     #_done
+                    mov     ch, #$1B
+                    call    #charOut
+                    mov     ch, #"["
+                    call    #charOut
+                    mov     a, y
+                    add     a, #1
+                    call    #decOut
+                    mov     ch, #";"
+                    call    #charOut
+                    mov     a, x
+                    add     a, #1
+                    call    #decOut
+                    mov     ch, #"R"
+                    call    #charOut
+                    jmp     #_done
+
 ' Receive single-byte character. Waits until character received.
 '
 ' Returns: $00..$FF in ch
@@ -502,13 +543,7 @@ charIn              rdlong  t1, rx_head                 ' check main serial
                     and     t2, #ser#BUFFER_MASK
                     wrlong  t2, aux_rx_tail
 
-                    rdlong  t2, tx_head                 ' echo char received from aux to main serial
-                    mov     t1, tx_buffer
-                    add     t1, t2
-                    wrbyte  ch, t1
-                    add     t2, #1
-                    and     t2, #ser#BUFFER_MASK
-                    wrlong  t2, tx_head
+                    call    #charOut                    ' echo char received from aux to main serial
                     jmp     #charIn
 
 :l1                 mov     t1, rx_buffer
@@ -518,6 +553,28 @@ charIn              rdlong  t1, rx_head                 ' check main serial
                     and     t2, #ser#BUFFER_MASK
                     wrlong  t2, rx_tail
 charIn_ret          ret
+
+charOut             rdlong  t2, tx_head                 ' echo char received from aux to main serial
+                    mov     t1, tx_buffer
+                    add     t1, t2
+                    wrbyte  ch, t1
+                    add     t2, #1
+                    and     t2, #ser#BUFFER_MASK
+                    wrlong  t2, tx_head
+charOut_ret         ret
+
+decOut              mov     ch, #"0"
+:l2                 cmp     a, #10 wz,wc
+        if_c        jmp     #:l1
+                    add     ch, #1
+                    sub     a, #10
+                    jmp     #:l2
+:l1                 cmp     ch, #"0" wz
+        if_nz       call    #charOut
+                    mov     ch, #"0"
+                    add     ch, a
+                    call    #charOut
+decOut_ret          ret
 
 ' Scrolls entire screen one row up
 
@@ -572,6 +629,7 @@ y                   long    0
 
 a                   res     1
 ch                  res     1
+ch_mod              res     1
 t1                  res     1
 t2                  res     1
 t3                  res     1
