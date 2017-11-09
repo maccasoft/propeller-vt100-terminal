@@ -44,6 +44,9 @@ CON
     LED_CAPS_LOCK = $02
     LED_SCROLL_LOCK = $04
 
+    REPEAT_DELAY = 400
+    REPEAT_RATE = 80
+
 VAR
 
     long  scrn[bcnt / 2]            ' screen buffer
@@ -55,6 +58,10 @@ VAR
     byte  usb_buf[64]
     byte  usb_report[8]
     byte  usb_led
+
+    long  kb_last
+    long  kb_timer
+    long  kb_mod
 
 OBJ
 
@@ -681,6 +688,9 @@ PUB usb_hid | retval, ifd, epd
         usb_led := 0
         hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
 
+        kb_last := 0
+        kb_timer := 0
+
         repeat while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
             retval := \hc.InterruptRead(epd, @usb_buf, 64)
 
@@ -696,10 +706,15 @@ PUB usb_hid | retval, ifd, epd
                 decode(@usb_buf)
                 'debug.str(string(debug#NL, debug#LF))
 
+            if kb_last <> 0 and kb_timer <> 0
+                if (kb_timer - CNT) =< 0
+                    keyPressed(kb_last, kb_mod)
+                    kb_timer := CNT + (CLKFREQ / 1000 * REPEAT_RATE)
+
         debug.str(string("Device disconnected", debug#NL, debug#LF))
         waitcnt(CNT + CLKFREQ)
 
-PRI decode(buffer) | i, c, k, mod, ptr
+PRI decode(buffer) | i, k, mod
 
     usb_report[0] := BYTE[buffer][0]
     usb_report[1] := BYTE[buffer][1]
@@ -717,43 +732,56 @@ PRI decode(buffer) | i, c, k, mod, ptr
     repeat i from 2 to 7
         k := BYTE[buffer][i]
         if k <> 0 and lookdown(k : usb_report[2], usb_report[3], usb_report[4], usb_report[5], usb_report[6], usb_report[7]) == 0
-            if (usb_led & LED_NUM_LOCK) and k => $59 and k =< $63
-                c := keymap.map(k, 1)
-            else
-                c := keymap.map(k, mod)
-            case c
-                "A".."Z":
-                    if (usb_report[0] & %00010001) ' CTRL
-                        ser.char(c - "A" + 1)
-                    else
-                        ser.char(c)
-                "a".."z":
-                    if (usb_report[0] & %00010001) ' CTRL
-                        ser.char(c - "a" + 1)
-                    elseif (usb_led & LED_CAPS_LOCK)
-                        ser.char(c ^ $20)
-                    else
-                        ser.char(c)
-                0..$FF:
-                    ser.char(c)
+            keyPressed(k, mod)
 
-                kb#KeyNumLock:
-                    usb_led ^= LED_NUM_LOCK
-                    hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
-                kb#KeyCapsLock:
-                    usb_led ^= LED_CAPS_LOCK
-                    hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
-                kb#KeyScrollLock:
-                    usb_led ^= LED_SCROLL_LOCK
-                    hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
-
-                kb#KeySpace..kb#KeyMaxCode:
-                    ptr := @@strTable[c - kb#KeySpace]
-                    repeat strsize(ptr)
-                        ser.char(byte[ptr])
-                        ptr++
+            if k <> kb_last
+                kb_last := k
+                kb_mod := mod
+                kb_timer := CNT + (CLKFREQ / 1000 * REPEAT_DELAY)
 
         usb_report[i] := k
+
+    if kb_last <> 0 and lookdown(kb_last : BYTE[buffer][2], BYTE[buffer][3], BYTE[buffer][4], BYTE[buffer][5], BYTE[buffer][6], BYTE[buffer][7]) == 0
+        kb_last := 0
+
+PRI keyPressed(k, mod) | c, ptr
+
+    if (usb_led & LED_NUM_LOCK) and k => $59 and k =< $63
+        c := keymap.map(k, 1)
+    else
+        c := keymap.map(k, mod)
+    case c
+        "A".."Z":
+            if (usb_report[0] & %00010001) ' CTRL
+                ser.char(c - "A" + 1)
+            else
+                ser.char(c)
+        "a".."z":
+            if (usb_report[0] & %00010001) ' CTRL
+                ser.char(c - "a" + 1)
+            elseif (usb_led & LED_CAPS_LOCK)
+                ser.char(c ^ $20)
+            else
+                ser.char(c)
+        0..$FF:
+            ser.char(c)
+
+        kb#KeyNumLock:
+            usb_led ^= LED_NUM_LOCK
+            hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
+        kb#KeyCapsLock:
+            usb_led ^= LED_CAPS_LOCK
+            hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
+        kb#KeyScrollLock:
+            usb_led ^= LED_SCROLL_LOCK
+            hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
+
+        kb#KeySpace..kb#KeyMaxCode:
+            ptr := @@strTable[c - kb#KeySpace]
+            repeat strsize(ptr)
+                ser.char(byte[ptr])
+                ptr++
+
 
 PRI decodeDebug(buffer)
 
