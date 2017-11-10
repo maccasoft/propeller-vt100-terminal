@@ -19,40 +19,40 @@ keymap
     word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x01
     word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x02
     word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x03
-    word    "a",               "A",               $E1,               $C1                ' 0x04
+    word    "a",               "A",               kb#KeyNone,        kb#KeyNone         ' 0x04
     word    "b",               "B",               kb#KeyNone,        kb#KeyNone         ' 0x05
-    word    "c",               "C",               $A9,               $A2                ' 0x06
-    word    "d",               "D",               $F0,               $D0                ' 0x07
-    word    "e",               "E",               $E9,               $C9                ' 0x08
+    word    "c",               "C",               kb#KeyNone,        kb#KeyNone         ' 0x06
+    word    "d",               "D",               kb#KeyNone,        kb#KeyNone         ' 0x07
+    word    "e",               "E",               kb#KeyNone,        kb#KeyNone         ' 0x08
     word    "f",               "F",               kb#KeyNone,        kb#KeyNone         ' 0x09
     word    "g",               "G",               kb#KeyNone,        kb#KeyNone         ' 0x0A
     word    "h",               "H",               kb#KeyNone,        kb#KeyNone         ' 0x0B
-    word    "i",               "I",               $ED,               $CD                ' 0x0C
+    word    "i",               "I",               kb#KeyNone,        kb#KeyNone         ' 0x0C
     word    "j",               "J",               kb#KeyNone,        kb#KeyNone         ' 0x0D
     word    "k",               "K",               kb#KeyNone,        kb#KeyNone         ' 0x0E
-    word    "l",               "L",               $F8,               $D8                ' 0x0F
-    word    "m",               "M",               $B5,               kb#KeyNone         ' 0x10
-    word    "n",               "N",               $F1,               $D1                ' 0x11
-    word    "o",               "O",               $F3,               $D3                ' 0x12
-    word    "p",               "P",               $F6,               $D6                ' 0x13
-    word    "q",               "Q",               $E4,               $C4                ' 0x14
-    word    "r",               "R",               $AE,               kb#KeyNone         ' 0x15
-    word    "s",               "S",               $DF,               $A7                ' 0x16
-    word    "t",               "T",               $FE,               $DE                ' 0x17
-    word    "u",               "U",               $FA,               $DA                ' 0x18
+    word    "l",               "L",               kb#KeyNone,        kb#KeyNone         ' 0x0F
+    word    "m",               "M",               kb#KeyNone,        kb#KeyNone         ' 0x10
+    word    "n",               "N",               kb#KeyNone,        kb#KeyNone         ' 0x11
+    word    "o",               "O",               kb#KeyNone,        kb#KeyNone         ' 0x12
+    word    "p",               "P",               kb#KeyNone,        kb#KeyNone         ' 0x13
+    word    "q",               "Q",               kb#KeyNone,        kb#KeyNone         ' 0x14
+    word    "r",               "R",               kb#KeyNone,        kb#KeyNone         ' 0x15
+    word    "s",               "S",               kb#KeyNone,        kb#KeyNone         ' 0x16
+    word    "t",               "T",               kb#KeyNone,        kb#KeyNone         ' 0x17
+    word    "u",               "U",               kb#KeyNone,        kb#KeyNone         ' 0x18
     word    "v",               "V",               kb#KeyNone,        kb#KeyNone         ' 0x19
-    word    "w",               "W",               $E5,               $C5                ' 0x1A
+    word    "w",               "W",               kb#KeyNone,        kb#KeyNone         ' 0x1A
     word    "x",               "X",               kb#KeyNone,        kb#KeyNone         ' 0x1B
-    word    "y",               "Y",               $FC,               $DC                ' 0x1C
-    word    "z",               "Z",               $E6,               $C6                ' 0x1D
-    word    "1",               "!",               $A1,               $B9                ' 0x1E
-    word    "2",               "@",               $B2,               kb#KeyNone         ' 0x1F
-    word    "3",               "#",               $B3,               kb#KeyNone         ' 0x20
-    word    "4",               "$",               $A4,               $A3                ' 0x21
-    word    "5",               "%",               $80,               kb#KeyNone         ' 0x22
-    word    "6",               "^",               $BC,               kb#KeyNone         ' 0x23
-    word    "7",               "&",               $BD,               kb#KeyNone         ' 0x24
-    word    "8",               "*",               $BE,               kb#KeyNone         ' 0x25
+    word    "y",               "Y",               kb#KeyNone,        kb#KeyNone         ' 0x1C
+    word    "z",               "Z",               kb#KeyNone,        kb#KeyNone         ' 0x1D
+    word    "1",               "!",               kb#KeyNone,        kb#KeyNone         ' 0x1E
+    word    "2",               "@",               kb#KeyNone,        kb#KeyNone         ' 0x1F
+    word    "3",               "#",               kb#KeyNone,        kb#KeyNone         ' 0x20
+    word    "4",               "$",               $EE,               kb#KeyNone         ' 0x21
+    word    "5",               "%",               kb#KeyNone,        kb#KeyNone         ' 0x22
+    word    "6",               "^",               kb#KeyNone,        kb#KeyNone         ' 0x23
+    word    "7",               "&",               kb#KeyNone,        kb#KeyNone         ' 0x24
+    word    "8",               "*",               kb#KeyNone,        kb#KeyNone         ' 0x25
     word    "9",               "(",               kb#KeyNone,        kb#KeyNone         ' 0x26
     word    "0",               ")",               kb#KeyNone,        kb#KeyNone         ' 0x27
     word    $0D,               $0D,               kb#KeyNone,        kb#KeyNone         ' 0x28
@@ -60,18 +60,18 @@ keymap
     word    $08,               $08,               kb#KeyNone,        kb#KeyNone         ' 0x2A
     word    $09,               $09,               kb#KeyNone,        kb#KeyNone         ' 0x2B
     word    " ",               " ",               kb#KeyNone,        kb#KeyNone         ' 0x2C
-    word    "-",               "_",               $A5,               kb#KeyNone         ' 0x2D
-    word    "=",               "+",               $D7,               $F7                ' 0x2E
-    word    "[",               "{",               $AB,               kb#KeyNone         ' 0x2F
-    word    "]",               "}",               $BB,               kb#KeyNone         ' 0x30
-    word    "\",               "|",               $AC,               $A6                ' 0x31
+    word    "-",               "_",               kb#KeyNone,        kb#KeyNone         ' 0x2D
+    word    "=",               "+",               kb#KeyNone,        kb#KeyNone         ' 0x2E
+    word    "[",               "{",               kb#KeyNone,        kb#KeyNone         ' 0x2F
+    word    "]",               "}",               kb#KeyNone,        kb#KeyNone         ' 0x30
+    word    "\",               "|",               kb#KeyNone,        kb#KeyNone         ' 0x31
     word    "#",               "~",               kb#KeyNone,        kb#KeyNone         ' 0x32
-    word    ";",               ":",               $B6,               $B0                ' 0x33
-    word    "'",               $22,               $B4,               $A8                ' 0x34
+    word    ";",               ":",               kb#KeyNone,        kb#KeyNone         ' 0x33
+    word    "'",               $22,               kb#KeyNone,        kb#KeyNone         ' 0x34
     word    $60,               "~",               kb#KeyNone,        kb#KeyNone         ' 0x35
-    word    ",",               "<",               $E7,               $C7                ' 0x36
+    word    ",",               "<",               kb#KeyNone,        kb#KeyNone         ' 0x36
     word    ".",               ">",               kb#KeyNone,        kb#KeyNone         ' 0x37
-    word    "/",               "?",               $BF,               kb#KeyNone         ' 0x38
+    word    "/",               "?",               kb#KeyNone,        kb#KeyNone         ' 0x38
     word    kb#KeyCapsLock,    kb#KeyCapsLock,    kb#KeyNone,        kb#KeyNone         ' 0x39
     word    kb#KeyF1,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x3A
     word    kb#KeyF2,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x3B

@@ -23,7 +23,7 @@ keymap
     word    "b",               "B",               kb#KeyNone,        kb#KeyNone         ' 0x05
     word    "c",               "C",               kb#KeyNone,        kb#KeyNone         ' 0x06
     word    "d",               "D",               kb#KeyNone,        kb#KeyNone         ' 0x07
-    word    "e",               "E",               $80,               $80                ' 0x08
+    word    "e",               "E",               $EE,               $EE                ' 0x08
     word    "f",               "F",               kb#KeyNone,        kb#KeyNone         ' 0x09
     word    "g",               "G",               kb#KeyNone,        kb#KeyNone         ' 0x0A
     word    "h",               "H",               kb#KeyNone,        kb#KeyNone         ' 0x0B
@@ -61,11 +61,11 @@ keymap
     word    $09,               $09,               kb#KeyNone,        kb#KeyNone         ' 0x2B
     word    " ",               " ",               kb#KeyNone,        kb#KeyNone         ' 0x2C
     word    "'",               "?",               kb#KeyNone,        kb#KeyNone         ' 0x2D
-    word    $8D,               "^",               kb#KeyNone,        kb#KeyNone         ' 0x2E
+    word    $8D,               "^",               $7E,               kb#KeyNone         ' 0x2E
     word    $8A,               $82,               "[",               "{"                ' 0x2F
     word    "+",               "*",               "]",               "}"                ' 0x30
-    word    $97,               $F5,               kb#KeyNone,        kb#KeyNone         ' 0x31
-    word    $A3,               $F5,               kb#KeyNone,        kb#KeyNone         ' 0x32
+    word    $97,               $15,               kb#KeyNone,        kb#KeyNone         ' 0x31
+    word    $A3,               $15,               kb#KeyNone,        kb#KeyNone         ' 0x32
     word    $95,               $87,               "@",               kb#KeyNone         ' 0x33
     word    $85,               $F8,               "#",               kb#KeyNone         ' 0x34
     word    "\",               "|",               kb#KeyNone,        kb#KeyNone         ' 0x35

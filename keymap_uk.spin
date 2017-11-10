@@ -48,7 +48,7 @@ keymap
     word    "1",               "!",               kb#KeyNone,        kb#KeyNone         ' 0x1E
     word    "2",               $22,               kb#KeyNone,        kb#KeyNone         ' 0x1F
     word    "3",               $9C,               kb#KeyNone,        kb#KeyNone         ' 0x20
-    word    "4",               "$",               kb#KeyNone,        kb#KeyNone         ' 0x21
+    word    "4",               "$",               $EE,               kb#KeyNone         ' 0x21
     word    "5",               "%",               kb#KeyNone,        kb#KeyNone         ' 0x22
     word    "6",               "^",               kb#KeyNone,        kb#KeyNone         ' 0x23
     word    "7",               "&",               kb#KeyNone,        kb#KeyNone         ' 0x24
@@ -68,7 +68,7 @@ keymap
     word    "#",               "~",               kb#KeyNone,        kb#KeyNone         ' 0x32
     word    ";",               ":",               kb#KeyNone,        kb#KeyNone         ' 0x33
     word    "'",               "@",               kb#KeyNone,        kb#KeyNone         ' 0x34
-    word    $60,               $AC,               kb#KeyNone,        kb#KeyNone         ' 0x35
+    word    $60,               $AA,               $7C,               kb#KeyNone         ' 0x35
     word    ",",               "<",               kb#KeyNone,        kb#KeyNone         ' 0x36
     word    ".",               ">",               kb#KeyNone,        kb#KeyNone         ' 0x37
     word    "/",               "?",               kb#KeyNone,        kb#KeyNone         ' 0x38
@@ -115,7 +115,7 @@ keymap
     word    kb#KeyPageUp,      kb#KeyKP_9,        kb#KeyNone,        kb#KeyNone         ' 0x61
     word    kb#KeyInsert,      kb#KeyKP_0,        kb#KeyNone,        kb#KeyNone         ' 0x62
     word    kb#KeyDelete,      kb#KeyKP_Period,   kb#KeyNone,        kb#KeyNone         ' 0x63
-    word    "<",               ">",               kb#KeyNone,        kb#KeyNone         ' 0x64
+    word    "\",               "|",               kb#KeyNone,        kb#KeyNone         ' 0x64
     word    kb#KeyApplication, kb#KeyApplication, kb#KeyNone,        kb#KeyNone         ' 0x65
     word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x66
     word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x67
