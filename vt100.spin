@@ -47,6 +47,9 @@ CON
     REPEAT_DELAY = 400
     REPEAT_RATE = 80
 
+    BELL_PINA = 14
+    BELL_PINB = 15
+
 VAR
 
     long  scrn[bcnt / 2]            ' screen buffer
@@ -116,7 +119,12 @@ DAT
                     org
 
 entry
-                    call    #charIn
+                    mov     DIRA, bell_mask
+                    jmp     #_bell
+
+_loop               call    #charIn
+                    cmp     ch, #$07 wz             ' bell
+        if_z        jmp     #_bell
                     cmp     ch, #$08 wz             ' backspace
         if_z        jmp     #_bs
                     cmp     ch, #$09 wz             ' tab
@@ -149,9 +157,9 @@ entry
                     or      a, txt_attr
                     wrword  a, t1
 
-                    cmpsub  x, #columns wc,wz       ' wraps right
+_wrap               cmpsub  x, #columns wc,wz       ' wraps right
         if_nc       jmp     #_done
-                    cmp     y, #rows-1 wc,wz
+_lf                 cmp     y, #rows-1 wc,wz
         if_c        add     y, #1
         if_nc       call    #scroll
 
@@ -160,27 +168,22 @@ _done               mov     t1, txt_cursor          ' updates cursor position
                     wrbyte  x, t1
                     add     t1, #1
                     wrbyte  y, t1
-                    jmp     #entry
+                    jmp     #_loop
 
-_bs                 cmp     x, #0 wz
-        if_nz       sub     x, #1
+_bell               mov     FRQA, bell_freq
+                    mov     CTRA, bell_ctr
+                    mov     a, CNT
+                    add     a, bell_duration
+                    waitcnt a, #0
+                    mov     CTRA, #0
+                    jmp     #_loop
+
+_bs                 cmpsub  x, #1
                     jmp     #_done
 
 _tab                andn    x, #7
                     add     x, #8
-                    cmpsub  x, #columns wc,wz
-        if_nc       jmp     #_done
-                    cmp     y, #rows-1 wc,wz
-        if_c        add     y, #1
-        if_nc       call    #scroll
-                    jmp     #_done
-
-_lf                 add     y, #1
-                    cmp     y, #rows wc,wz
-        if_nz       jmp     #_done
-                    sub     y, #1
-                    call    #scroll
-                    jmp     #_done
+                    jmp     #_wrap
 
 _ff                 mov     x, #0
                     mov     y, #0
@@ -233,6 +236,10 @@ _esc                mov     argc, #0
                     cmp     ch, #"[" wz
         if_nz       jmp     #_done
 
+                    call    #charIn
+                    cmp     ch, #"?" wz             ' check private prefix after "["
+        if_nz       jmp     #:l2+1
+                    mov     ch_mod, ch
 :l2                 call    #charIn
                     cmp     ch, #"0" wc,wz
         if_c        jmp     #:l1
@@ -256,9 +263,9 @@ _esc                mov     argc, #0
 :d2                 mov     0-0, #0
                     jmp     #:l2
 
-:l3                 cmp     ch, #"?" wz
-        if_z        mov     ch_mod, ch
-        if_z        jmp     #:l2
+:l3                 cmp     ch_mod, #"?" wz
+        if_z        jmp     #_pvt
+
                     cmp     ch, #"A" wz
         if_z        jmp     #_up
                     cmp     ch, #"B" wz
@@ -283,14 +290,12 @@ _esc                mov     argc, #0
         if_z        jmp     #_save
                     cmp     ch, #"u" wz
         if_z        jmp     #_restore
+                    jmp     #_done
 
-                    cmp     ch_mod, #"?" wz         ' private escape sequences
-        if_nz       jmp     #_done
-                    cmp     ch, #"h" wz
-        if_z        jmp     #_cursor_onoff
+_pvt                cmp     ch, #"h" wz             ' private escape sequences
+        if_z        jmp     #_cursor_state
                     cmp     ch, #"l" wz
-        if_z        jmp     #_cursor_onoff
-
+        if_z        jmp     #_cursor_state
                     jmp     #_done
 
 _up                 cmp     args, #0 wz
@@ -502,13 +507,19 @@ _el                 mov     t1, y                   ' t1 := y * 80
                     djnz    t3, #$-2
                     jmp     #_done
 
-_cursor_onoff       cmp     args, #25 wz
-        if_nz       jmp     #_done
-                    rdbyte  t1, txt_cursor
-                    andn    t1, #CURSOR_MASK
+_cursor_state       rdbyte  t1, txt_cursor
+                    cmp     args, #12 wz            ' enable / disable blinking
+        if_nz       jmp     #:l1
                     cmp     ch, #"l" wz
-        if_z        or      t1, #CURSOR_OFF
-        if_nz       or      t1, #(CURSOR_ON | CURSOR_BLOCK | CURSOR_FLASH)
+        if_z        andn    t1, #CURSOR_FLASH
+        if_nz       or      t1, #CURSOR_FLASH
+                    wrbyte  t1, txt_cursor
+                    jmp     #_done
+:l1                 cmp     args, #25 wz            ' show / hide cursor
+        if_nz       jmp     #_done
+                    cmp     ch, #"l" wz
+        if_z        andn    t1, #CURSOR_ON
+        if_nz       or      t1, #CURSOR_ON
                     wrbyte  t1, txt_cursor
                     jmp     #_done
 
@@ -630,6 +641,11 @@ txt_scrn            long    0
 txt_bcnt            long    bcnt
 txt_attr            long    $70
 txt_cursor_s        long    0
+
+bell_mask           long    (1 << BELL_PINA) | (1 << BELL_PINB)
+bell_ctr            long    (%00100 << 26) | (BELL_PINB << 9) | BELL_PINA
+bell_freq           long    214748  ' 4000Hz = 2^32 / CLKFREQ * Hz
+bell_duration       long    (80000000 / 1000) * 200
 
 x                   long    0
 y                   long    0
