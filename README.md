@@ -1,52 +1,65 @@
 ## Propeller ANSI / VT-100 Terminal
 
-Firmware for a serial terminal add-on board designed for the [RC2014](http://http://rc2014.co.uk/) computer.
-It adds VGA video output as 80x25 text (720x400@70Hz) with ANSI / VT-100 terminal emulation, and USB keyboard input.
-Using a single [Parallax Propeller](https://www.parallax.com) microcontroller running at 80MHz.
+Firmware for a serial terminal add-on board designed for the [RC2014](http://http://rc2014.co.uk/) computer. It adds VGA video output as
+80x25 text (640x400@70Hz) with ANSI / VT-100 terminal emulation, and USB keyboard input. Using a single
+[Parallax Propeller](https://www.parallax.com) microcontroller running at 80MHz.
 
-![The prototype board](board.jpg)
+![The board](board.jpg)
+
+### Connections
+
+![Assembly](assembly.png)
+
+ 1. RC2014 bus
+ 2. USB Keyboard
+ 3. VGA
+ 4. Programming header (optional prop-plug compatible)
+
+**JP1** and **JP2** can be used to disconnect the board from the standard RX and TX lines on the bus and connect to another serial port (for example to the secondary
+port of the dual serial board). Use the top pads to connect the RX and TX lines respectively.
+
+The **USB** host driver supports __keyboards only__, no other devices are supported including hubs.
+
+The programming header can be used as an auxiliary serial input, all characters received are sent to the RC2014 as they were typed by the user.
+Beware that __the port levels are 3.3 volts only__.
 
 ### Terminal ANSI Codes
 
 The following escape sequences can be used to control the terminal behaviour
 
  * **`\ESC[{COUNT}A`**  
-       Move cursor up COUNT lines (default 1).  
+       Moves the cursor up by COUNT rows; the default count is 1.  
  * **`\ESC[{COUNT}B`**  
-       Move cursor down COUNT lines (default 1).  
+       Moves the cursor down by COUNT rows; the default count is 1.  
  * **`\ESC[{COUNT}C`**  
-       Move cursor right COUNT columns (default 1).  
+       Moves the cursor forward by COUNT columns; the default count is 1.  
  * **`\ESC[{COUNT}D`**  
-       Move cursor left COUNT columns (default 1).  
- * **`\ESC[H`**  
-       Move cursor to upper left corner.  
+       Moves the cursor backwards by COUNT columns; the default count is 1.  
  * **`\ESC[{ROW];{COLUMN}H`**  
-       Move cursor to screen location ROW,COLUMN.  
- * **`\ESC[f`**  
-       Move cursor to upper left corner.  
- * **`\ESC[{ROW];{COLUMN}f`**  
-       Move cursor to screen location ROW,COLUMN.  
- * **`\ESC[{COUNT}0K`**  
+       Sets the cursor position where subsequent text will begin. If no ROW/COLUMN parameters
+       are provided (ie. `\ESC[H`), the cursor will move to the home position, at the upper left
+       of the screen.  
+ * **`\ESC[K`**  
        Clear line from cursor right.  
- * **`\ESC[{COUNT}1K`**  
+ * **`\ESC[1K`**  
        Clear line from cursor left.  
- * **`\ESC[{COUNT}2K`**  
+ * **`\ESC[2K`**  
        Clear entire line.  
- * **`\ESC[{COUNT}0J`**  
+ * **`\ESC[J`**  
        Clear screen from cursor down.  
- * **`\ESC[{COUNT}1J`**  
+ * **`\ESC[1J`**  
        Clear screen from cursor up.  
- * **`\ESC[{COUNT}2J`**  
+ * **`\ESC[2J`**  
        Clear entire screen.  
+ * **`\ESC[{ROW];{COLUMN}f`**  
+       Same as `\ESC[{ROW];{COLUMN}H`.  
  * **`\ESC[{NUM1};...;{NUMn}m`**  
-       Calls the graphics functions specified by the following values. These
-       specified functions remain active until the next occurrence of this
-       escape sequence. Graphics mode changes the colors and attributes of
-       text (such as bold and underline) displayed on the screen.
-       The following lists supported attributes:  
-        **`0`** - All attributes off  
-        **`1`** - Bright on  
-        **`5`** - Blink on  
+       Sets multiple display attribute settings. The following lists supported attributes:  
+        **`0`** - Reset all attributes  
+        **`1`** - Bright  
+        **`2`** - Dim  
+        **`5`** - Blink  
+        **`25`** - Blink off  
         **`30..37`** - Foreground color (black, red, green, yellow, blue, magenta, cyan, white)  
         **`38;5;{NUM}`** - Foreground color to {NUM} (0-15)  
         **`39;{NUM}`** - Default foreground color  
@@ -60,6 +73,14 @@ The following escape sequences can be used to control the terminal behaviour
        Save current cursor position.  
  * **`\ESC[u`**  
        Restores the saved cursor position.  
+ * **`\ESC[?12h`**  
+       Enable cursor blinking.  
+ * **`\ESC[?12l`**  
+       Disable cursor blinking.  
+ * **`\ESC[?25h`**  
+       Show cursor.  
+ * **`\ESC[?25l`**  
+       Hide cursor.  
 
 Where `\ESC` is the binary character `1Bh (or 27)` and `{NUM}`, `{COUNT}`,
 `{ROW}`, `{COLUMN}` is any sequence of numeric characters like `123`.
@@ -67,48 +88,45 @@ Where `\ESC` is the binary character `1Bh (or 27)` and `{NUM}`, `{COUNT}`,
 ### Usage from BASIC
 
 ```
-10 PRINT CHR$(27);"[1;31m";"TEXT IN RED";CHR$(27);"[39m"
+10 PRINT CHR$(27);"[1;31m";"TEXT IN RED";CHR$(27);"[0m"
 ```
 
 ### Parts List
 
-* R1 = 220 ohm 1/4 watt
+* R1 = 10.000 ohm 1/4 watt
 * R2 = 4.700 ohm 1/4 watt
 * R3 = 4.700 ohm 1/4 watt
-* R4 = 510 ohm 1% 1/4 watt
-* R5 = 240 ohm 1% 1/4 watt
-* R6 = 510 ohm 1% 1/4 watt
-* R7 = 240 ohm 1% 1/4 watt
-* R8 = 510 ohm 1% 1/4 watt
-* R9 = 240 ohm 1% 1/4 watt
-* R10 = 240 ohm 1% 1/4 watt
-* R11 = 240 ohm 1% 1/4 watt
-* R12 = 130 ohm 1% 1/4 watt
-* R13 = 130 ohm 1% 1/4 watt
-* R14 = 130 ohm 1% 1/4 watt
-* R15 = 10.000 ohm 1/4 watt
-* R16 = 10.000 ohm 1/4 watt
+* R4 = 510 ohm 1/4 watt 1%
+* R5 = 240 ohm 1/4 watt 1%
+* R6 = 510 ohm 1/4 watt 1%
+* R7 = 240 ohm 1/4 watt 1%
+* R8 = 510 ohm 1/4 watt 1%
+* R9 = 240 ohm 1/4 watt 1%
+* R10 = 240 ohm 1/4 watt 1%
+* R11 = 240 ohm 1/4 watt 1%
+* R12 = 130 ohm 1/4 watt 1%
+* R13 = 130 ohm 1/4 watt 1%
+* R14 = 130 ohm 1/4 watt 1%
+* R15 = 47 ohm 1/4 watt
+* R16 = 47 ohm 1/4 watt
 * R17 = 47.000 ohm 1/4 watt
 * R18 = 47.000 ohm 1/4 watt
-* R19 = 47 ohm 1/4 watt
-* R20 = 47 ohm 1/4 watt
-* R21 = 10.000 ohm 1/4 watt
-* R22 = 22.000 ohm 1/4 watt
-* C2 = 10 uF 63v elettr.
-* C3 = 100.000 pF poli
-* C4 = 100.000 pF poli
-* C5 = 100.000 pF poli
+* R19 = 10.000 ohm 1/4 watt
+* R20 = 22.000 ohm 1/4 watt
+* C1 = 1 uF 63v elettr.
+* C2 = 100.000 pF ceramic
+* C3 = 100.000 pF ceramic
+* C4 = 100.000 pF ceramic
 * XTAL1 = 5 MHz crystal
-* IC1 = LF33ABV
+* IC1 = MCP1700-3302E/TO
 * IC2 = P8X32A-D40
 * IC3 = 24LC512
-* JP1 = 3 pin male header
+* SP1 = Piezoelectric buzzer
+* JP1 = 2 pin male header
 * JP2 = 2 pin male header
-* JP3 = 2 pin male header
-* JP4 = 2 pin male header
-* JP5 = 2 pin male header
 * CN1 = USB-A connector
 * CN2 = 40 pin male header, right angle
 * CN3 = DB15 HD female connector
 * CN4 = 5 pin male header
+
 
