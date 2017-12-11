@@ -49,6 +49,8 @@ CON
 
     BELL_PINA = 14
     BELL_PINB = 15
+    BELL_FREQ = 800
+    BELL_MS   = 200
 
 VAR
 
@@ -80,8 +82,8 @@ OBJ
 
 PUB start | temp
 
-    debug.Start(115200)
     ser.StartRxTx(8, 9, 0, 115200)
+    debug.StartRxTx(31, 30, 0, 115200)
 
     wordfill(@scrn, $20_70, bcnt)
     cursor.byte[CX] := 0
@@ -170,7 +172,7 @@ _done               mov     t1, txt_cursor          ' updates cursor position
                     wrbyte  y, t1
                     jmp     #_loop
 
-_bell               mov     FRQA, bell_freq
+_bell               mov     FRQA, bell_frq
                     mov     CTRA, bell_ctr
                     mov     a, CNT
                     add     a, bell_duration
@@ -644,8 +646,8 @@ txt_cursor_s        long    0
 
 bell_mask           long    (1 << BELL_PINA) | (1 << BELL_PINB)
 bell_ctr            long    (%00100 << 26) | (BELL_PINB << 9) | BELL_PINA
-bell_freq           long    214748  ' 4000Hz = 2^32 / CLKFREQ * Hz
-bell_duration       long    (80000000 / 1000) * 200
+bell_frq            long    trunc(53.6870912 * float(BELL_FREQ))
+bell_duration       long    (80000000 / 1000) * BELL_MS
 
 x                   long    0
 y                   long    0
