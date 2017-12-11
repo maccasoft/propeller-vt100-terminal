@@ -168,6 +168,10 @@ entry                   mov     t1,par                'get structure address
         if_z_ne_c       or      outa,txmask
         if_z            or      dira,txmask
 
+                        test    rxtxmode,#%001  wz    'wait for idle rx line
+                        test    rxmask,ina      wc
+        if_z_ne_c       jmp     #$-2
+
                         mov     txcode,#transmit      'initialize ping-pong multitasking
 
 
