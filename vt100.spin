@@ -79,6 +79,8 @@ OBJ
     'keymap : "keymap_us"
     keymap : "keymap_it"
     'keymap : "keymap_uk"
+    'keymap : "keymap_fr"
+    'keymap : "keymap_de"
 
 PUB start | temp
 
