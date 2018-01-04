@@ -91,42 +91,28 @@ Where `\ESC` is the binary character `1Bh (or 27)` and `{NUM}`, `{COUNT}`,
 10 PRINT CHR$(27);"[1;31m";"TEXT IN RED";CHR$(27);"[0m"
 ```
 
-### Parts List
+### Schematic
 
-* R1 = 10.000 ohm 1/4 watt
-* R2 = 4.700 ohm 1/4 watt
-* R3 = 4.700 ohm 1/4 watt
-* R4 = 510 ohm 1/4 watt 1%
-* R5 = 240 ohm 1/4 watt 1%
-* R6 = 510 ohm 1/4 watt 1%
-* R7 = 240 ohm 1/4 watt 1%
-* R8 = 510 ohm 1/4 watt 1%
-* R9 = 240 ohm 1/4 watt 1%
-* R10 = 240 ohm 1/4 watt 1%
-* R11 = 240 ohm 1/4 watt 1%
-* R12 = 130 ohm 1/4 watt 1%
-* R13 = 130 ohm 1/4 watt 1%
-* R14 = 130 ohm 1/4 watt 1%
-* R15 = 47 ohm 1/4 watt
-* R16 = 47 ohm 1/4 watt
-* R17 = 47.000 ohm 1/4 watt
-* R18 = 47.000 ohm 1/4 watt
-* R19 = 10.000 ohm 1/4 watt
-* R20 = 22.000 ohm 1/4 watt
-* C1 = 1 uF 63v elettr.
-* C2 = 100.000 pF ceramic
-* C3 = 100.000 pF ceramic
-* C4 = 100.000 pF ceramic
-* XTAL1 = 5 MHz crystal
-* IC1 = MCP1700-3302E/TO
-* IC2 = P8X32A-D40
-* IC3 = 24LC512
-* SP1 = Piezoelectric buzzer
-* JP1 = 2 pin male header
-* JP2 = 2 pin male header
-* CN1 = USB-A connector
-* CN2 = 40 pin male header, right angle
-* CN3 = DB15 HD female connector
-* CN4 = 5 pin male header
+![Schematic](rc2014-vga-r1.png)
 
+| Parts List |  |
+| --- | --- |
+| R1 = 10.000 ohm 1/4 watt| R19 = 10.000 ohm 1/4 watt|
+| R2 = 4.700 ohm 1/4 watt| R20 = 22.000 ohm 1/4 watt|
+| R3 = 4.700 ohm 1/4 watt| C1 = 1 uF 63v elettr.|
+| R4 = 510 ohm 1/4 watt 1%| C2 = 100.000 pF poly.|
+| R5 = 240 ohm 1/4 watt 1%| C3 = 100.000 pF poly.|
+| R6 = 510 ohm 1/4 watt 1%| C4 = 100.000 pF poly.|
+| R7 = 240 ohm 1/4 watt 1%| XTAL1 = 5 MHz crystal|
+| R8 = 510 ohm 1/4 watt 1%| IC1 = MCP1700-3302E/TO|
+| R9 = 240 ohm 1/4 watt 1%| IC2 = P8X32A-D40|
+| R10 = 240 ohm 1/4 watt 1%| IC3 = 24LC256|
+| R11 = 240 ohm 1/4 watt 1%| SP1 = Piezoelectric buzzer|
+| R12 = 130 ohm 1/4 watt 1%| JP1 = 2 pin male header|
+| R13 = 130 ohm 1/4 watt 1%| JP2 = 2 pin male header|
+| R14 = 130 ohm 1/4 watt 1%| CN1 = USB-A connector|
+| R15 = 47 ohm 1/4 watt| CN2 = 40 pin male header, right angle|
+| R16 = 47 ohm 1/4 watt| CN3 = DB15 HD female connector|
+| R17 = 47.000 ohm 1/4 watt| CN4 = 5 pin male header|
+| R18 = 47.000 ohm 1/4 watt| |
 
