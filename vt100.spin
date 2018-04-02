@@ -76,11 +76,21 @@ OBJ
     vga    : "waitvid.80x25.driver"
     font   : "generic8x16-2font"
     kb     : "keyboard"
-    'keymap : "keymap_us"
+#ifdef KEYMAP_IT
     keymap : "keymap_it"
-    'keymap : "keymap_uk"
-    'keymap : "keymap_fr"
-    'keymap : "keymap_de"
+#endif
+#ifdef KEYMAP_UK
+    keymap : "keymap_uk"
+#endif
+#ifdef KEYMAP_US
+    keymap : "keymap_us"
+#endif
+#ifdef KEYMAP_FR
+    keymap : "keymap_fr"
+#endif
+#ifdef KEYMAP_DE
+    keymap : "keymap_de"
+#endif
 
 PUB start | temp
 
