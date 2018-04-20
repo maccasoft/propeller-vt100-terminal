@@ -54,6 +54,8 @@ CON
     KeyKP_Center
     KeyKP_Comma
     KeyKP_Period
+    KeyShiftLeft
+    KeyShiftRight
     KeyMaxCode
 
 PUB null

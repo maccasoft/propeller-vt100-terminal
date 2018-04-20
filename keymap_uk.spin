@@ -94,8 +94,8 @@ keymap
     word    kb#KeyDelete,      kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x4C
     word    kb#KeyEnd,         kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x4D
     word    kb#KeyPageDown,    kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x4E
-    word    kb#KeyRight,       kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x4F
-    word    kb#KeyLeft,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x50
+    word    kb#KeyRight,       kb#KeyShiftRight,  kb#KeyNone,        kb#KeyNone         ' 0x4F
+    word    kb#KeyLeft,        kb#KeyShiftLeft,   kb#KeyNone,        kb#KeyNone         ' 0x50
     word    kb#KeyDown,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x51
     word    kb#KeyUp,          kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x52
     word    kb#KeyNumLock,     kb#KeyNumLock,     kb#KeyNone,        kb#KeyNone         ' 0x53

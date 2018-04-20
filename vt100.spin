@@ -848,6 +848,10 @@ PRI showError(error, message) : bool
         return 1
     return 0
 
+CON
+
+    #1, CTRL_A, CTRL_B, CTRL_C, CTRL_D, CTRL_E, CTRL_F, CTRL_G, CTRL_H, CTRL_I, CTRL_J, CTRL_K, CTRL_L, CTRL_M, CTRL_N, CTRL_O, CTRL_P, CTRL_Q, CTRL_R, CTRL_S, CTRL_T, CTRL_U, CTRL_V, CTRL_W, CTRL_X, CTRL_Y, CTRL_Z, ESC
+
 DAT
 
 strTable            word    @strKeySpace
@@ -901,12 +905,29 @@ strTable            word    @strKeySpace
                     word    @strKeyKP_Center
                     word    @strKeyKP_Comma
                     word    @strKeyKP_Period
+                    word    @strKeyShiftLeft
+                    word    @strKeyShiftRight
 
 strKeySpace         byte    " ", 0
 strKeyEscape        byte    $1B, 0
 strKeyBackspace     byte    $08, 0
 strKeyTabulator     byte    $09, 0
 strKeyReturn        byte    $0D, 0
+
+#ifdef WORDSTAR
+strKeyInsert        byte    CTRL_V, 0
+strKeyHome          byte    CTRL_Q, "S", 0
+strKeyPageUp        byte    CTRL_R, 0
+strKeyDelete        byte    CTRL_G, 0
+strKeyEnd           byte    CTRL_Q, "D", 0
+strKeyPageDown      byte    CTRL_C, 0
+strKeyUp            byte    CTRL_E, 0
+strKeyDown          byte    CTRL_X, 0
+strKeyLeft          byte    CTRL_S, 0
+strKeyRight         byte    CTRL_D, 0
+strKeyShiftLeft     byte    CTRL_A, 0
+strKeyShiftRight    byte    CTRL_F, 0
+#else
 strKeyInsert        byte    0
 strKeyHome          byte    $1B, "[H", 0
 strKeyPageUp        byte    0
@@ -917,6 +938,10 @@ strKeyUp            byte    $1B, "OA", 0
 strKeyDown          byte    $1B, "OB", 0
 strKeyLeft          byte    $1B, "OD", 0
 strKeyRight         byte    $1B, "OC", 0
+strKeyShiftLeft     byte    0
+strKeyShiftRight    byte    0
+#endif
+
 strKeyF1            byte    $1B, "OP", 0
 strKeyF2            byte    $1B, "OQ", 0
 strKeyF3            byte    $1B, "OR", 0
