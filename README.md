@@ -59,6 +59,7 @@ The following escape sequences can be used to control the terminal behaviour
         **`1`** - Bright  
         **`2`** - Dim  
         **`5`** - Blink  
+        **`7`** - Reverse  
         **`25`** - Blink off  
         **`30..37`** - Foreground color (black, red, green, yellow, blue, magenta, cyan, white)  
         **`38;5;{NUM}`** - Foreground color to {NUM} (0-15)  
@@ -115,4 +116,6 @@ Where `\ESC` is the binary character `1Bh (or 27)` and `{NUM}`, `{COUNT}`,
 | R16 = 47 ohm 1/4 watt| CN3 = DB15 HD female connector|
 | R17 = 47.000 ohm 1/4 watt| CN4 = 5 pin male header|
 | R18 = 47.000 ohm 1/4 watt| |
+
+Board shared on [OSHPark](https://oshpark.com/shared_projects/Utghpucg) and available on [Tindie](https://www.tindie.com/stores/maccasoft/).
 
