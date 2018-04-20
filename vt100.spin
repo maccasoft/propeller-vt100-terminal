@@ -1,6 +1,6 @@
 {{
     ANSI / VT-100 Terminal Emulator
-    Copyright (c) 2017 Marco Maccaferri and others
+    Copyright (c) 2017-18 Marco Maccaferri and others
 
     TERMS OF USE: MIT License
 }}
@@ -154,7 +154,7 @@ _loop               call    #charIn
 
                     ' write ch to vga buffer
 
-                    add     x, #1
+_print              add     x, #1
 
                     mov     t1, y                   ' t2 := y * 80
                     shl     t1, #4
@@ -229,6 +229,8 @@ _esc                mov     argc, #0
                     mov     ch_mod, #0
 
                     call    #charIn
+                    cmp     ch, #$1B wz             ' esc (again, print it)
+        if_z        jmp     #_print
                     cmp     ch, #"A" wz             ' VT-52 compatibility
         if_z        jmp     #_up
                     cmp     ch, #"B" wz
@@ -362,6 +364,8 @@ _attr               mov     a, 0-0
         if_z        jmp     #:bright
                     cmp     a, #5 wz                ' blink
         if_z        jmp     #:blink
+                    cmp     a, #7 wz                ' reverse
+        if_z        jmp     #:reverse
                     cmp     a, #30 wc               ' foreground
         if_c        jmp     #:l2
                     cmp     a, #38 wc,wz
@@ -387,6 +391,13 @@ _attr               mov     a, 0-0
 :bright             or      txt_attr, #$80
                     jmp     #:l1
 :blink              or      txt_attr, #$01
+                    jmp     #:l1
+:reverse            mov     t1, txt_attr
+                    and     t1, #$0E
+                    shl     t1, #3
+                    and     txt_attr, #$70
+                    shr     txt_attr, #3
+                    or      txt_attr, t1
                     jmp     #:l1
 :fg                 sub     a, #30
                     shl     a, #4
