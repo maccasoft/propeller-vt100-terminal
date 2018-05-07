@@ -33,6 +33,7 @@
 '' 20150615: full character range (9th column is always background)
 '' 20171027: modified colors table (Marco Maccaferri)
 '' 20171104: added conditional compile and timings for 640x400@70Hz (Marco Maccaferri)
+'' 20180507: modified cursor mask to act on pixels only (Marco Maccaferri)
 ''
 CON
   CURSOR_ON    = %100
@@ -83,11 +84,6 @@ driver          jmpret  $, #setup               '  -4   once
                 long    $02CECE02, $82CECE82, $22CECE22, $A2CECEA2, $0ACECE0A, $8ACECE8A, $2ACECE2A, $AACECEAA
                 long    $023E3E02, $823E3E82, $223E3E22, $A23E3EA2, $0A3E3E0A, $8A3E3E8A, $2A3E3E2A, $AA3E3EAA
                 long    $02FEFE02, $82FEFE82, $22FEFE22, $A2FEFEA2, $0AFEFE0A, $8AFEFE8A, $2AFEFE2A, $AAFEFEAA
-
-' The following two masks are placed here to make sure cmsk is at 2n.
-
-cmsk            long    %%3330_3330             ' xor mask for block cursor
-pmsk            long    %%0000_3333             ' xor mask for underscore cursor (updated for primary)
 
 ' horizontal timing 720(720)  1(18) 6(108) 3(54)
 '   vertical timing 400(400) 13(13) 2(2)  34(34)
@@ -309,13 +305,11 @@ cursor          test    vier, #%100 wz          ' cursor enabled?
         if_nz   cmp     scnt, #1 wz
         if_nz   jmp     cursor_ret              ' wrong scanline pair
 
-                muxc    :set, #1                ' adjust source
-
                 ror     vier, #8 wc             ' carry: blink on/off
                 movd    :set, vier
         if_c    cmp     fcnt, #18 wc
-:set    if_nc   xor     0-0, cmsk{2n}           ' cmsk: block
-                                                ' pmsk: underscore
+:set    if_nc   xor     0-0, cmsk
+
 cursor_ret      ret
 
 
@@ -330,10 +324,8 @@ prep            mov     temp, vier              ' working copy
                 xor     vier, #%100             ' invert on/off
                 or      vier, temp              ' reinsert y
 
-                test    vier, #%010 wz          ' underscore(1)/block(0)
                 ror     vier, #8                ' align x for add
-        if_nz   add     vier, #pix
-        if_z    add     vier, #col
+                add     vier, #pix
                 rol     vier, #8                ' restore cursor descriptor
 
 prep_ret        ret
@@ -373,6 +365,8 @@ dst2            long    2 << 9                  ' dst     +/-= 2
 dst4            long    4 << 9                  ' dst     +/-= 4
 d1s1            long    1 << 9  | 1             ' dst/src +/-= 1
 i4s3            long    4 << 23 | 3
+
+cmsk            long    %%3333_3333             ' xor mask for cursor
 
 ' Stuff below is re-purposed for temporary storage.
 
@@ -448,7 +442,6 @@ setup           add     trap, par wc            ' carry set -> secondary
 
                 max     dira, mask              ' drive outputs
                 mov     $000, pal0              ' restore colour entry 0
-        if_nc   shl     pmsk, #8                ' adjust underscore cursor (bytes swapped)
                 jmp     #vsync                  ' return
 
 ' Local data, used only once.
