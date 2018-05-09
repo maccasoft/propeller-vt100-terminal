@@ -125,15 +125,25 @@ PUB start | temp
     txt_cursor := @cursor
     txt_scrn := @scrn + (bcnt << 1)
 
+    esc_overlay_par := OverlayParams(@_esc, @_esc_end)
+    attr_overlay_par := OverlayParams(@_attr, @_attr_end)
+    vt_overlay_par := OverlayParams(@_vt, @_vt_end)
+
     coginit(cogid, @entry, 0)
+
+PRI OverlayParams (o_start, o_end) : params | len, hubend, cogend
+    ' This code sets up the parameters for an overlay (in a format to increase overlay loading speed)
+    len := o_end - o_start
+    hubend := o_start + len - 1
+    cogend := ((@overlay_start - @entry + len) / 4) - 1
+    params := hubend << 16 + cogend
 
 
 DAT
 
                     org
 
-entry
-                    mov     DIRA, bell_mask
+entry               mov     DIRA, bell_mask
                     jmp     #_bell
 
 _loop               call    #charIn
@@ -150,13 +160,18 @@ _loop               call    #charIn
                     cmp     ch, #$0D wz             ' carriage return
         if_z        jmp     #_cr
                     cmp     ch, #$1B wz             ' esc
-        if_z        jmp     #_esc
+        if_z        mov     overlay_par, esc_overlay_par
+        if_z        jmp     #overlay_load
 
                     ' write ch to vga buffer
 
-_print              add     x, #1
+_print              cmpsub  x, #columns wc
+        if_nc       jmp     #:l1
+                    cmp     y, #rows-1 wc,wz
+        if_c        add     y, #1
+        if_nc       call    #scroll
 
-                    mov     t1, y                   ' t2 := y * 80
+:l1                 mov     t1, y                   ' t2 := y * 80
                     shl     t1, #4
                     mov     t2, t1
                     shl     t2, #2
@@ -166,20 +181,20 @@ _print              add     x, #1
 
                     mov     t1, txt_scrn
                     sub     t1, t2
+                    sub     t1, #2
                     mov     a, ch
                     shl     a, #8
                     or      a, txt_attr
                     wrword  a, t1
 
-_wrap               cmpsub  x, #columns wc,wz       ' wraps right
-        if_nc       jmp     #_done
-_lf                 cmp     y, #rows-1 wc,wz
-        if_c        add     y, #1
-        if_nc       call    #scroll
+                    add     x, #1
 
 _done               mov     t1, txt_cursor          ' updates cursor position
                     add     t1, #CX
-                    wrbyte  x, t1
+                    mov     a,x
+                    cmp     a, #columns wz,wc
+        if_nc       mov     a, #columns-1
+                    wrbyte  a, t1
                     add     t1, #1
                     wrbyte  y, t1
                     jmp     #_loop
@@ -195,9 +210,15 @@ _bell               mov     FRQA, bell_frq
 _bs                 cmpsub  x, #1
                     jmp     #_done
 
-_tab                andn    x, #7
+_tab                cmpsub  x, #columns
+                    andn    x, #7
                     add     x, #8
-                    jmp     #_wrap
+                    jmp     #_done
+
+_lf                 cmp     y, #rows-1 wc,wz
+        if_c        add     y, #1
+        if_nc       call    #scroll
+                    jmp     #_done
 
 _ff                 mov     x, #0
                     mov     y, #0
@@ -219,18 +240,126 @@ _cls                mov     t1, #$20
 _cr                 mov     x, #0
                     jmp     #_done
 
+' resident code
+
+charIn              rdlong  t1, rx_head
+                    rdlong  t2, rx_tail
+                    cmp     t1, t2 wz
+        if_z        jmp     #charIn
+
+                    mov     t1, rx_buffer
+                    add     t1, t2
+                    rdbyte  ch, t1
+                    add     t2, #1
+                    and     t2, #ser#BUFFER_MASK
+                    wrlong  t2, rx_tail
+charIn_ret          ret
+
+scroll              mov     t1, txt_scrn
+                    sub     t1, #4
+                    mov     t2, t1
+                    sub     t2, #columns << 1
+                    mov     t3, txt_bcnt
+                    sub     t3, #columns
+                    shr     t3, #1
+:l1                 rdlong  a, t2
+                    sub     t2, #4
+                    wrlong  a, t1
+                    sub     t1, #4
+                    djnz    t3, #:l1
+
+                    mov     t2, #$20
+                    shl     t2, #8
+                    or      t2, txt_attr
+                    mov     a, t2
+                    shl     a, #16
+                    or      a, t2
+                    mov     t3, #columns >> 1
+:l2                 wrlong  a, t1
+                    sub     t1, #4
+                    djnz    t3, #:l2
+
+scroll_ret          ret
+
+' initialised data and/or presets
+
+incdst              long    1 << 9
+
+rx_buffer           long    0
+rx_head             long    0
+rx_tail             long    0
+
+tx_buffer           long    0
+tx_head             long    0
+tx_tail             long    0
+
+aux_rx_buffer       long    0
+aux_rx_head         long    0
+aux_rx_tail         long    0
+
+txt_cursor          long    0
+txt_scrn            long    0
+txt_bcnt            long    bcnt
+txt_attr            long    $70
+txt_cursor_s        long    0
+
+bell_mask           long    (1 << BELL_PINA) | (1 << BELL_PINB)
+bell_ctr            long    (%00100 << 26) | (BELL_PINB << 9) | BELL_PINA
+bell_frq            long    trunc(53.6870912 * float(BELL_FREQ))
+bell_duration       long    (80000000 / 1000) * BELL_MS
+
+x                   long    0
+y                   long    0
+
+esc_overlay_par     long    0
+attr_overlay_par    long    0
+vt_overlay_par      long    0
+
+' uninitialised data and/or temporaries
+
+a                   long    0
+ch                  long    0
+ch_mod              long    0
+t1                  long    0
+t2                  long    0
+t3                  long    0
+
+argc                long    0
+args                long    0[8]
+
+' overlay loader
+
+overlay_par         long    0-0
+
+_0x400              long    $0000_0400
+_djnz0              djnz    overlay_par, #_cp2
+
+overlay_load        mov     overlay_start, _djnz0
+                    movd    _cp2, overlay_par
+                    sub     overlay_par, #1
+                    movd    _cp1, overlay_par
+                    shr     overlay_par, #16
+_cp2                rdlong  0-0, overlay_par
+                    sub     overlay_par, #7
+                    sub     _cp2, _0x400
+_cp1                rdlong  0-0, overlay_par
+                    sub     _cp1, _0x400
+
+overlay_start
+
+                    fit     $1F0
+
+                    org     overlay_start
+
 _esc                mov     argc, #0
                     mov     args, #0
                     mov     args+1, #0
-                    movd    :d1, #args
-                    movd    :d2, #args
-                    movs    :s1, #args
-                    movs    _attr, #args
                     mov     ch_mod, #0
 
                     call    #charIn
                     cmp     ch, #$1B wz             ' esc (again, print it)
         if_z        jmp     #_print
+
                     cmp     ch, #"A" wz             ' VT-52 compatibility
         if_z        jmp     #_up
                     cmp     ch, #"B" wz
@@ -241,14 +370,14 @@ _esc                mov     argc, #0
         if_z        jmp     #_left
                     cmp     ch, #"H" wz
         if_z        jmp     #_cup
+
                     cmp     ch, #"J" wz
-        if_z        jmp     #_ed
-                    cmp     ch, #"K" wz
-        if_z        jmp     #_el
-                    cmp     ch, #"7" wz
-        if_z        jmp     #_save
-                    cmp     ch, #"8" wz
-        if_z        jmp     #_restore
+        if_nz       cmp     ch, #"K" wz
+        if_nz       cmp     ch, #"7" wz
+        if_nz       cmp     ch, #"8" wz
+        if_z        mov     overlay_par, vt_overlay_par
+        if_z        jmp     #overlay_load
+
                     cmp     ch, #"[" wz
         if_nz       jmp     #_done
 
@@ -256,19 +385,20 @@ _esc                mov     argc, #0
                     cmp     ch, #"?" wz             ' check private prefix after "["
         if_nz       jmp     #:l2+1
                     mov     ch_mod, ch
+
 :l2                 call    #charIn
                     cmp     ch, #"0" wc,wz
         if_c        jmp     #:l1
                     cmp     ch, #"9"+1 wc,wz
         if_nc       jmp     #:l1
-:s1                 mov     t1, 0-0                 ' multiply x 10
+:s1                 mov     t1, args                ' multiply x 10
                     shl     t1, #1
                     mov     t2, t1
                     shl     t2, #2
                     add     t2, t1
                     sub     ch, #"0"                ' adds digit
                     add     t2, ch
-:d1                 mov     0-0, t2
+:d1                 mov     args, t2
                     jmp     #:l2
 :l1                 cmp     ch, #";" wz
         if_nz       jmp     #:l3
@@ -276,13 +406,10 @@ _esc                mov     argc, #0
                     add     :d1, incdst
                     add     :d2, incdst
                     add     :s1, #1
-:d2                 mov     0-0, #0
+:d2                 mov     args, #0
                     jmp     #:l2
 
-:l3                 cmp     ch_mod, #"?" wz
-        if_z        jmp     #_pvt
-
-                    cmp     ch, #"A" wz
+:l3                 cmp     ch, #"A" wz
         if_z        jmp     #_up
                     cmp     ch, #"B" wz
         if_z        jmp     #_down
@@ -292,27 +419,12 @@ _esc                mov     argc, #0
         if_z        jmp     #_left
                     cmp     ch, #"H" wz
         if_z        jmp     #_cup
-                    cmp     ch, #"J" wz
-        if_z        jmp     #_ed
-                    cmp     ch, #"K" wz
-        if_z        jmp     #_el
-                    cmp     ch, #"f" wz
-        if_z        jmp     #_cup
                     cmp     ch, #"m" wz
-        if_z        jmp     #_attr
-                    cmp     ch, #"n" wz
-        if_z        jmp     #_cursor_report
-                    cmp     ch, #"s" wz
-        if_z        jmp     #_save
-                    cmp     ch, #"u" wz
-        if_z        jmp     #_restore
-                    jmp     #_done
+        if_z        mov     overlay_par, attr_overlay_par
+        if_z        jmp     #overlay_load
 
-_pvt                cmp     ch, #"h" wz             ' private escape sequences
-        if_z        jmp     #_cursor_state
-                    cmp     ch, #"l" wz
-        if_z        jmp     #_cursor_state
-                    jmp     #_done
+                    mov     overlay_par, vt_overlay_par
+                    jmp     #overlay_load
 
 _up                 cmp     args, #0 wz
         if_z        add     args, #1
@@ -346,18 +458,12 @@ _cup                mov     y, args
                     cmpsub  x, #1
                     jmp     #_done
 
-_save               mov     txt_cursor_s, y
-                    shl     txt_cursor_s, #16
-                    or      txt_cursor_s, x
-                    jmp     #_done
+                    long    $0[($ - overlay_start) // 2]
+_esc_end            fit     $1F0
 
-_restore            mov     x, txt_cursor_s
-                    and     x, #$1FF
-                    mov     y, txt_cursor_s
-                    shr     y, #16
-                    jmp     #_done
+                    org     overlay_start
 
-_attr               mov     a, 0-0
+_attr               mov     a, args
                     cmp     a, #0 wz                ' reset attr
         if_z        jmp     #:reset
                     cmp     a, #1 wz                ' bright
@@ -455,6 +561,45 @@ _attr               mov     a, 0-0
                     jmp     #:l1
 :res_bg             and     txt_attr, #$F1
                     jmp     #:l1
+
+                    long    $0[($ - overlay_start) // 2]
+_attr_end           fit     $1F0
+
+                    org     overlay_start
+
+_vt                 cmp     ch_mod, #"?" wz
+        if_z        jmp     #_pvt
+
+                    cmp     ch, #"J" wz
+        if_z        jmp     #_ed
+                    cmp     ch, #"K" wz
+        if_z        jmp     #_el
+                    cmp     ch, #"f" wz
+        if_z        jmp     #_cup
+                    cmp     ch, #"n" wz
+        if_z        jmp     #_cursor_report
+                    cmp     ch, #"s" wz
+        if_z        jmp     #_save
+                    cmp     ch, #"u" wz
+        if_z        jmp     #_restore
+                    jmp     #_done
+
+_pvt                cmp     ch, #"h" wz             ' private escape sequences
+        if_z        jmp     #_cursor_state
+                    cmp     ch, #"l" wz
+        if_z        jmp     #_cursor_state
+                    jmp     #_done
+
+_save               mov     txt_cursor_s, y
+                    shl     txt_cursor_s, #16
+                    or      txt_cursor_s, x
+                    jmp     #_done
+
+_restore            mov     x, txt_cursor_s
+                    and     x, #$1FF
+                    mov     y, txt_cursor_s
+                    shr     y, #16
+                    jmp     #_done
 
 _ed                 cmp     args, #2 wz             ' clear entire screen
         if_z        jmp     #_cls
@@ -566,38 +711,7 @@ _cursor_report      cmp     args, #6 wz
                     call    #charOut
                     jmp     #_done
 
-' Receive single-byte character. Waits until character received.
-'
-' Returns: $00..$FF in ch
-
-charIn              rdlong  t1, rx_head                 ' check main serial
-                    rdlong  t2, rx_tail
-                    cmp     t1, t2 wz
-        if_nz       jmp     #:l1
-
-                    rdlong  t1, aux_rx_head             ' check auxiliary serial
-                    rdlong  t2, aux_rx_tail
-                    cmp     t1, t2 wz
-        if_z        jmp     #charIn
-                    mov     t1, aux_rx_buffer
-                    add     t1, t2
-                    rdbyte  ch, t1
-                    add     t2, #1
-                    and     t2, #ser#BUFFER_MASK
-                    wrlong  t2, aux_rx_tail
-
-                    call    #charOut                    ' echo char received from aux to main serial
-                    jmp     #charIn
-
-:l1                 mov     t1, rx_buffer
-                    add     t1, t2
-                    rdbyte  ch, t1
-                    add     t2, #1
-                    and     t2, #ser#BUFFER_MASK
-                    wrlong  t2, rx_tail
-charIn_ret          ret
-
-charOut             rdlong  t2, tx_head                 ' echo char received from aux to main serial
+charOut             rdlong  t2, tx_head
                     mov     t1, tx_buffer
                     add     t1, t2
                     wrbyte  ch, t1
@@ -607,85 +721,18 @@ charOut             rdlong  t2, tx_head                 ' echo char received fro
 charOut_ret         ret
 
 decOut              mov     ch, #"0"
-:l2                 cmp     a, #10 wz,wc
-        if_c        jmp     #:l1
-                    add     ch, #1
-                    sub     a, #10
-                    jmp     #:l2
-:l1                 cmp     ch, #"0" wz
+                    cmpsub  a, #10 wc
+        if_c        add     ch, #1
+        if_c        jmp     #$-2
+                    cmp     ch, #"0" wz
         if_nz       call    #charOut
                     mov     ch, #"0"
                     add     ch, a
                     call    #charOut
 decOut_ret          ret
 
-' Scrolls entire screen one row up
-
-scroll              mov     t1, txt_scrn
-                    sub     t1, #4
-                    mov     t2, t1
-                    sub     t2, #columns << 1
-                    mov     t3, txt_bcnt
-                    sub     t3, #columns
-                    shr     t3, #1
-:l1                 rdlong  a, t2
-                    sub     t2, #4
-                    wrlong  a, t1
-                    sub     t1, #4
-                    djnz    t3, #:l1
-
-                    mov     t2, #$20
-                    shl     t2, #8
-                    or      t2, txt_attr
-                    mov     a, t2
-                    shl     a, #16
-                    or      a, t2
-                    mov     t3, #columns >> 1
-:l2                 wrlong  a, t1
-                    sub     t1, #4
-                    djnz    t3, #:l2
-
-scroll_ret          ret
-
-incdst              long    1 << 9
-
-rx_buffer           long    0
-rx_head             long    0
-rx_tail             long    0
-
-tx_buffer           long    0
-tx_head             long    0
-tx_tail             long    0
-
-aux_rx_buffer       long    0
-aux_rx_head         long    0
-aux_rx_tail         long    0
-
-txt_cursor          long    0
-txt_scrn            long    0
-txt_bcnt            long    bcnt
-txt_attr            long    $70
-txt_cursor_s        long    0
-
-bell_mask           long    (1 << BELL_PINA) | (1 << BELL_PINB)
-bell_ctr            long    (%00100 << 26) | (BELL_PINB << 9) | BELL_PINA
-bell_frq            long    trunc(53.6870912 * float(BELL_FREQ))
-bell_duration       long    (80000000 / 1000) * BELL_MS
-
-x                   long    0
-y                   long    0
-
-a                   res     1
-ch                  res     1
-ch_mod              res     1
-t1                  res     1
-t2                  res     1
-t3                  res     1
-
-argc                res     1
-args                res     8
-
-                    fit
+                    long    $0[($ - overlay_start) // 2]
+_vt_end             fit     $1F0
 
 PUB usb_hid | retval, ifd, epd
 
