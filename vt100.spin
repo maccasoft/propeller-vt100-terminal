@@ -578,6 +578,8 @@ _vt                 cmp     ch_mod, #"?" wz
         if_z        jmp     #_cup
                     cmp     ch, #"n" wz
         if_z        jmp     #_cursor_report
+                    cmp     ch, #"q" wz
+        if_z        jmp     #_cursor_style
                     cmp     ch, #"s" wz
         if_z        jmp     #_save
                     cmp     ch, #"u" wz
@@ -675,6 +677,21 @@ _el                 mov     t1, y                   ' t1 := y * 80
                     sub     t1, #2
                     wrword  a, t1
                     djnz    t3, #$-2
+                    jmp     #_done
+
+_cursor_style       rdbyte  t1, txt_cursor
+                    and     t1, #CURSOR_ON
+
+                    cmp     args, #0 wz
+        if_nz       cmp     args, #1 wz
+        if_z        or      t1, #CURSOR_FLASH
+
+                    cmp     args, #3 wz
+        if_z        or      t1, #CURSOR_FLASH
+        if_nz       cmp     args, #4 wz
+        if_z        or      t1, #CURSOR_ULINE
+
+                    wrbyte  t1, txt_cursor
                     jmp     #_done
 
 _cursor_state       rdbyte  t1, txt_cursor
