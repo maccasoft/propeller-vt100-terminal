@@ -453,8 +453,12 @@ _left               cmp     args, #0 wz
                     jmp     #_done
 
 _cup                mov     y, args
+                    cmp     y, #rows wc
+        if_nc       mov     y, #rows
                     cmpsub  y, #1
                     mov     x, args+1
+                    cmp     x, #columns wc
+        if_nc       mov     x, #columns
                     cmpsub  x, #1
                     jmp     #_done
 
