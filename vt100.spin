@@ -578,6 +578,10 @@ _vt                 cmp     ch_mod, #"?" wz
         if_z        jmp     #_ed
                     cmp     ch, #"K" wz
         if_z        jmp     #_el
+                    cmp     ch, #"L" wz
+        if_z        jmp     #_ins_line
+                    cmp     ch, #"M" wz
+        if_z        jmp     #_del_line
                     cmp     ch, #"f" wz
         if_z        jmp     #_cup
                     cmp     ch, #"n" wz
@@ -641,6 +645,85 @@ _ed                 cmp     args, #2 wz             ' clear entire screen
                     wrword  a, t1
                     add     t1, #2
                     djnz    t3, #$-2
+                    jmp     #_done
+
+_ins_line           mov     t1, y
+                    shl     t1, #4
+                    mov     t2, t1
+                    shl     t2, #2
+                    add     t2, t1
+
+                    mov     t3, txt_bcnt
+                    sub     t3, #columns
+                    sub     t3, t2
+
+                    mov     t1, txt_scrn
+                    sub     t1, txt_bcnt
+                    sub     t1, txt_bcnt
+
+                    cmp     y, #rows-1 wz
+        if_z        jmp     #:l3
+
+                    mov     t2, t1
+                    add     t2, #columns << 1
+
+:l1                 rdword  a, t2
+                    add     t2, #2
+                    wrword  a, t1
+                    add     t1, #2
+                    djnz    t3, #:l1
+
+:l3                 mov     t2, #$20
+                    shl     t2, #8
+                    or      t2, txt_attr
+                    mov     a, t2
+                    shl     a, #16
+                    or      a, t2
+                    mov     t3, #columns >> 1
+:l2                 wrlong  a, t1
+                    add     t1, #4
+                    djnz    t3, #:l2
+
+                    jmp     #_done
+
+_del_line           mov     t1, y
+                    shl     t1, #4
+                    mov     t2, t1
+                    shl     t2, #2
+                    add     t2, t1
+
+                    mov     t1, txt_scrn
+                    sub     t1, t2
+                    sub     t1, t2
+                    sub     t1, #2
+
+                    cmp     y, #rows-1 wz
+        if_z        jmp     #:l3
+
+                    mov     t3, txt_bcnt
+                    sub     t3, t2
+                    sub     t3, #columns
+
+                    mov     t2, t1
+                    sub     t2, #columns << 1
+
+:l1                 rdword  a, t2
+                    sub     t2, #2
+                    wrword  a, t1
+                    sub     t1, #2
+                    djnz    t3, #:l1
+
+:l3                 mov     t2, #$20
+                    shl     t2, #8
+                    or      t2, txt_attr
+                    mov     a, t2
+                    shl     a, #16
+                    or      a, t2
+                    mov     t3, #columns >> 1
+:l2                 wrlong  a, t1
+                    sub     t1, #4
+                    djnz    t3, #:l2
+
                     jmp     #_done
 
 _el                 mov     t1, y                   ' t1 := y * 80
