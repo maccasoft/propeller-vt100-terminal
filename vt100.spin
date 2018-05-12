@@ -67,6 +67,7 @@ VAR
     long  kb_last
     long  kb_timer
     long  kb_mod
+    long  kb_str_table
 
 OBJ
 
@@ -125,6 +126,15 @@ PUB start | temp
     txt_cursor := @cursor
     txt_scrn := @scrn + (bcnt << 1)
 
+#ifdef CURSOR_KEY_APP
+    kb_str_table := @strTableApp
+#else
+    kb_str_table := @strTable
+#endif
+    kb_str_table_ptr := @kb_str_table
+    kb_str_table_1 := @strTable
+    kb_str_table_2 := @strTableApp
+
     esc_overlay_par := OverlayParams(@_esc, @_esc_end)
     attr_overlay_par := OverlayParams(@_attr, @_attr_end)
     vt_overlay_par := OverlayParams(@_vt, @_vt_end)
@@ -141,7 +151,7 @@ PRI OverlayParams (o_start, o_end) : params | len, hubend, cogend
 
 DAT
 
-                    org
+                    org     0
 
 entry               mov     DIRA, bell_mask
                     jmp     #_bell
@@ -595,9 +605,9 @@ _vt                 cmp     ch_mod, #"?" wz
                     jmp     #_done
 
 _pvt                cmp     ch, #"h" wz             ' private escape sequences
-        if_z        jmp     #_cursor_state
+        if_z        jmp     #_toggles
                     cmp     ch, #"l" wz
-        if_z        jmp     #_cursor_state
+        if_z        jmp     #_toggles
                     jmp     #_done
 
 _save               mov     txt_cursor_s, y
@@ -781,16 +791,31 @@ _cursor_style       rdbyte  t1, txt_cursor
                     wrbyte  t1, txt_cursor
                     jmp     #_done
 
-_cursor_state       rdbyte  t1, txt_cursor
-                    cmp     args, #12 wz            ' enable / disable blinking
-        if_nz       jmp     #:l1
+_toggles            cmp     args, #1 wz
+        if_z        jmp     #_key_mode
+                    cmp     args, #12 wz
+        if_z        jmp     #_blink
+                    cmp     args, #25 wz
+        if_z        jmp     #_display
+                    jmp     #_done
+
+_key_mode           cmp     ch, #"l" wz             ' cursor key mode
+        if_z        wrlong  kb_str_table_1, kb_str_table_ptr
+        if_nz       wrlong  kb_str_table_2, kb_str_table_ptr
+                    jmp     #_done
+
+kb_str_table_ptr    long    0
+kb_str_table_1      long    0
+kb_str_table_2      long    0
+
+_blink              rdbyte  t1, txt_cursor          ' enable / disable blinking
                     cmp     ch, #"l" wz
         if_z        andn    t1, #CURSOR_FLASH
         if_nz       or      t1, #CURSOR_FLASH
                     wrbyte  t1, txt_cursor
                     jmp     #_done
-:l1                 cmp     args, #25 wz            ' show / hide cursor
-        if_nz       jmp     #_done
+
+_display            rdbyte  t1, txt_cursor          ' show / hide cursor
                     cmp     ch, #"l" wz
         if_z        andn    t1, #CURSOR_ON
         if_nz       or      t1, #CURSOR_ON
@@ -969,7 +994,7 @@ PRI keyPressed(k, mod) | c, ptr
             hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
 
         kb#KeySpace..kb#KeyMaxCode:
-            ptr := @@strTable[c - kb#KeySpace]
+            ptr := @@word[kb_str_table][c - kb#KeySpace]
             repeat strsize(ptr)
                 ser.char(byte[ptr])
                 ptr++
@@ -1004,6 +1029,8 @@ CON
     #1, CTRL_A, CTRL_B, CTRL_C, CTRL_D, CTRL_E, CTRL_F, CTRL_G, CTRL_H, CTRL_I, CTRL_J, CTRL_K, CTRL_L, CTRL_M, CTRL_N, CTRL_O, CTRL_P, CTRL_Q, CTRL_R, CTRL_S, CTRL_T, CTRL_U, CTRL_V, CTRL_W, CTRL_X, CTRL_Y, CTRL_Z, ESC
 
 DAT
+
+' Default (cursor) mode keys table
 
 strTable            word    @strKeySpace
                     word    @strKeyEscape
@@ -1059,39 +1086,69 @@ strTable            word    @strKeySpace
                     word    @strKeyShiftLeft
                     word    @strKeyShiftRight
 
+' Application mode keys table
+
+strTableApp         word    @strKeySpace
+                    word    @strKeyEscape
+                    word    @strKeyBackspace
+                    word    @strKeyTabulator
+                    word    @strKeyReturn
+                    word    @strAppKeyInsert
+                    word    @strAppKeyHome
+                    word    @strAppKeyPageUp
+                    word    @strAppKeyDelete
+                    word    @strAppKeyEnd
+                    word    @strAppKeyPageDown
+                    word    @strAppKeyUp
+                    word    @strAppKeyDown
+                    word    @strAppKeyLeft
+                    word    @strAppKeyRight
+                    word    @strKeyF1
+                    word    @strKeyF2
+                    word    @strKeyF3
+                    word    @strKeyF4
+                    word    @strKeyF5
+                    word    @strKeyF6
+                    word    @strKeyF7
+                    word    @strKeyF8
+                    word    @strKeyF9
+                    word    @strKeyF10
+                    word    @strKeyF11
+                    word    @strKeyF12
+                    word    @strKeyApplication
+                    word    @strKeyCapsLock
+                    word    @strKeyPrintScreen
+                    word    @strKeyScrollLock
+                    word    @strKeyPause
+                    word    @strKeyNumLock
+                    word    @strKeyKP_Divide
+                    word    @strKeyKP_Multiply
+                    word    @strKeyKP_Subtract
+                    word    @strKeyKP_Add
+                    word    @strKeyKP_Enter
+                    word    @strKeyKP_1
+                    word    @strKeyKP_2
+                    word    @strKeyKP_3
+                    word    @strKeyKP_4
+                    word    @strKeyKP_5
+                    word    @strKeyKP_6
+                    word    @strKeyKP_7
+                    word    @strKeyKP_8
+                    word    @strKeyKP_9
+                    word    @strKeyKP_0
+                    word    @strKeyKP_Center
+                    word    @strKeyKP_Comma
+                    word    @strKeyKP_Period
+                    word    @strKeyShiftLeft
+                    word    @strKeyShiftRight
+
+' Common default (cursor) and application mode keys
+
 strKeySpace         byte    " ", 0
 strKeyEscape        byte    $1B, 0
 strKeyBackspace     byte    $08, 0
 strKeyTabulator     byte    $09, 0
 strKeyReturn        byte    $0D, 0
-
-#ifdef WORDSTAR
-strKeyInsert        byte    CTRL_V, 0
-strKeyHome          byte    CTRL_Q, "S", 0
-strKeyPageUp        byte    CTRL_R, 0
-strKeyDelete        byte    CTRL_G, 0
-strKeyEnd           byte    CTRL_Q, "D", 0
-strKeyPageDown      byte    CTRL_C, 0
-strKeyUp            byte    CTRL_E, 0
-strKeyDown          byte    CTRL_X, 0
-strKeyLeft          byte    CTRL_S, 0
-strKeyRight         byte    CTRL_D, 0
-strKeyShiftLeft     byte    CTRL_A, 0
-strKeyShiftRight    byte    CTRL_F, 0
-#else
-strKeyInsert        byte    0
-strKeyHome          byte    $1B, "[H", 0
-strKeyPageUp        byte    0
-strKeyDelete        byte    $7F, 0
-strKeyEnd           byte    $1B, "[K", 0
-strKeyPageDown      byte    0
-strKeyUp            byte    $1B, "OA", 0
-strKeyDown          byte    $1B, "OB", 0
-strKeyLeft          byte    $1B, "OD", 0
-strKeyRight         byte    $1B, "OC", 0
-strKeyShiftLeft     byte    0
-strKeyShiftRight    byte    0
-#endif
 
 strKeyF1            byte    $1B, "OP", 0
 strKeyF2            byte    $1B, "OQ", 0
@@ -1105,12 +1162,14 @@ strKeyF9            byte    $1B, "OX", 0
 strKeyF10           byte    $1B, "OY", 0
 strKeyF11           byte    0
 strKeyF12           byte    0
+
 strKeyApplication   byte    0
 strKeyCapsLock      byte    0
 strKeyPrintScreen   byte    0
 strKeyScrollLock    byte    0
 strKeyPause         byte    0
 strKeyNumLock       byte    0
+
 strKeyKP_Divide     byte    "/", 0
 strKeyKP_Multiply   byte    "*", 0
 strKeyKP_Subtract   byte    "-", 0
@@ -1129,6 +1188,36 @@ strKeyKP_0          byte    "0", 0
 strKeyKP_Center     byte    0
 strKeyKP_Comma      byte    ",", 0
 strKeyKP_Period     byte    ".", 0
+
+' Default (cursor) mode keys
+
+strKeyInsert        byte    0
+strKeyHome          byte    $1B, "[H", 0
+strKeyPageUp        byte    0
+strKeyDelete        byte    $7F, 0
+strKeyEnd           byte    $1B, "[K", 0
+strKeyPageDown      byte    0
+strKeyUp            byte    $1B, "OA", 0
+strKeyDown          byte    $1B, "OB", 0
+strKeyLeft          byte    $1B, "OD", 0
+strKeyRight         byte    $1B, "OC", 0
+strKeyShiftLeft     byte    0
+strKeyShiftRight    byte    0
+
+' Application mode keys
+
+strAppKeyInsert     byte    CTRL_V, 0
+strAppKeyHome       byte    CTRL_Q, "S", 0
+strAppKeyPageUp     byte    CTRL_R, 0
+strAppKeyDelete     byte    CTRL_G, 0
+strAppKeyEnd        byte    CTRL_Q, "D", 0
+strAppKeyPageDown   byte    CTRL_C, 0
+strAppKeyUp         byte    CTRL_E, 0
+strAppKeyDown       byte    CTRL_X, 0
+strAppKeyLeft       byte    CTRL_S, 0
+strAppKeyRight      byte    CTRL_D, 0
+strAppKeyShiftLeft  byte    CTRL_A, 0
+strAppKeyShiftRight byte    CTRL_F, 0
 
 {{
 
