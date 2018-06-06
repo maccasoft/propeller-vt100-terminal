@@ -23,6 +23,33 @@ The **USB** host driver supports __keyboards only__, no other devices are suppor
 The programming header can be used as an auxiliary serial input, all characters received are sent to the RC2014 as they were typed by the user.
 Beware that __the port levels are 3.3 volts only__.
 
+### Firmware compile
+
+The firmware can be compiled using [OpenSpin](https://www.maccasoft.com/downloads/) and uploaded to the EEPROM either using the Prop-Plug serial adapter for in-circuit programming
+or a stand alone programmer.
+
+Compile with the following command:
+
+`openspin -b -u -DKEYMAP_IT vt100.spin`
+
+The -DKEYMAP_IT parameter specifies the keyboard layout mapping, replace the last two letters (IT) with the country code you want to compile. The currently available
+countries are DE (Germany), FR (France, QZERTY), IT (Italy), UK (United Kingdom) and US (United States).
+
+The compiler generates a file named vt100.binary that can be written to the EEPROM using a stand alone programmer.
+
+**In-circuit programming**
+
+The firmware can also be written to the EEPROM using a Prop-Plug serial adapter connected to the board using the programming header as illustrated on the picture above
+(be sure to connect the cables properly, the leftmost pin marked 3.3v is not used with the Prop-Plug adapter).
+
+Download the [Propeller Loader](https://www.maccasoft.com/downloads/) tool, connect the adapter to a USB port and issue the following command:
+
+`propeller-load -p /dev/ttyUSB0 -e -r vt100.binary`
+
+The -p parameter specifies the serial port assigned to the Prop-Plug adapter in the notation used by the operating system (/dev/ttyUSBx for Linux, COMxx for Windows).
+
+After programming the board is reset and the new firmware immediately usable.
+
 ### Terminal ANSI Codes
 
 The following escape sequences can be used to control the terminal behaviour
@@ -74,6 +101,10 @@ The following escape sequences can be used to control the terminal behaviour
        Save current cursor position.  
  * **`\ESC[u`**  
        Restores the saved cursor position.  
+ * **`\ESC[?1h`**  
+       Set cursor keys to application (WS-compatible).  
+ * **`\ESC[?1l`**  
+       Set cursor keys to cursor.  
  * **`\ESC[?12h`**  
        Enable cursor blinking.  
  * **`\ESC[?12l`**  
@@ -82,6 +113,12 @@ The following escape sequences can be used to control the terminal behaviour
        Show cursor.  
  * **`\ESC[?25l`**  
        Hide cursor.  
+ * **`\ESC[{NUM}q`**  
+       Set cursor style. {NUM} is 0/1=blinking block, 2=steady block, 3=blinking underline, 4=steady underline.  
+ * **`\ESC[L`**  
+       Insert line.  
+ * **`\ESC[M`**  
+       Delete line.  
 
 Where `\ESC` is the binary character `1Bh (or 27)` and `{NUM}`, `{COUNT}`,
 `{ROW}`, `{COLUMN}` is any sequence of numeric characters like `123`.
