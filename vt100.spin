@@ -92,6 +92,9 @@ OBJ
 #ifdef KEYMAP_DE
     keymap : "keymap_de"
 #endif
+#ifdef KEYMAP_NO
+    keymap : "keymap_no"
+#endif
 
 PUB start | temp
 
