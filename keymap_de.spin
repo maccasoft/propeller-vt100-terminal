@@ -43,8 +43,8 @@ keymap
     word    "v",               "V",               kb#KeyNone,        kb#KeyNone         ' 0x19
     word    "w",               "W",               kb#KeyNone,        kb#KeyNone         ' 0x1A
     word    "x",               "X",               kb#KeyNone,        kb#KeyNone         ' 0x1B
-    word    "y",               "Y",               kb#KeyNone,        kb#KeyNone         ' 0x1C
-    word    "z",               "Z",               kb#KeyNone,        kb#KeyNone         ' 0x1D
+    word    "z",               "Z",               kb#KeyNone,        kb#KeyNone         ' 0x1C
+    word    "y",               "Y",               kb#KeyNone,        kb#KeyNone         ' 0x1D
     word    "1",               "!",               kb#KeyNone,        kb#KeyNone         ' 0x1E
     word    "2",               $22,               $FD,               kb#KeyNone         ' 0x1F
     word    "3",               $15,               kb#KeyNone,        kb#KeyNone         ' 0x20
