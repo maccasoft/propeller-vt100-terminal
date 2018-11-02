@@ -64,8 +64,8 @@ keymap
     word    "'",               "`",               kb#KeyNone,        kb#KeyNone         ' 0x2E
     word    $81,               $9A,               kb#KeyNone,        kb#KeyNone         ' 0x2F
     word    "+",               "*",               "~",               kb#KeyNone         ' 0x30
-    word    "#",               "'",               kb#KeyNone,        kb#KeyNone         ' 0x31
-    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x32
+    word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x31
+    word    "#",               "'",               kb#KeyNone,        kb#KeyNone         ' 0x32
     word    $94,               $99,               kb#KeyNone,        kb#KeyNone         ' 0x33
     word    $84,               $8E,               kb#KeyNone,        kb#KeyNone         ' 0x34
     word    "^",               $F8,               kb#KeyNone,        kb#KeyNone         ' 0x35
