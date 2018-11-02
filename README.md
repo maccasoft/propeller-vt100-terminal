@@ -33,7 +33,7 @@ Compile with the following command:
 `openspin -b -u -DKEYMAP_IT vt100.spin`
 
 The -DKEYMAP_IT parameter specifies the keyboard layout mapping, replace the last two letters (IT) with the country code you want to compile. The currently available
-countries are DE (Germany), FR (France, QZERTY), IT (Italy), UK (United Kingdom) and US (United States).
+countries are DE (Germany), FR (France, QZERTY), IT (Italy), NO (Norway), UK (United Kingdom) and US (United States).
 
 The compiler generates a file named vt100.binary that can be written to the EEPROM using a stand alone programmer.
 
@@ -137,7 +137,7 @@ Where `\ESC` is the binary character `1Bh (or 27)` and `{NUM}`, `{COUNT}`,
 | --- | --- |
 | R1 = 10.000 ohm 1/4 watt| R19 = 10.000 ohm 1/4 watt|
 | R2 = 4.700 ohm 1/4 watt| R20 = 22.000 ohm 1/4 watt|
-| R3 = 4.700 ohm 1/4 watt| C1 = 1 uF 63v elettr.|
+| R3 = 4.700 ohm 1/4 watt| C1 = 10 uF 63v elettr.|
 | R4 = 510 ohm 1/4 watt 1%| C2 = 100.000 pF poly.|
 | R5 = 240 ohm 1/4 watt 1%| C3 = 100.000 pF poly.|
 | R6 = 510 ohm 1/4 watt 1%| C4 = 100.000 pF poly.|
