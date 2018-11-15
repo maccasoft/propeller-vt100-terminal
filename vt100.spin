@@ -432,6 +432,8 @@ _esc                mov     argc, #0
         if_z        jmp     #_left
                     cmp     ch, #"H" wz
         if_z        jmp     #_cup
+                    cmp     ch, #"f" wz
+        if_z        jmp     #_cup
                     cmp     ch, #"m" wz
         if_z        mov     overlay_par, attr_overlay_par
         if_z        jmp     #overlay_load
@@ -595,8 +597,6 @@ _vt                 cmp     ch_mod, #"?" wz
         if_z        jmp     #_ins_line
                     cmp     ch, #"M" wz
         if_z        jmp     #_del_line
-                    cmp     ch, #"f" wz
-        if_z        jmp     #_cup
                     cmp     ch, #"n" wz
         if_z        jmp     #_cursor_report
                     cmp     ch, #"q" wz
