@@ -974,6 +974,8 @@ PRI keyPressed(k, mod) | c, ptr
         "A".."Z":
             if (usb_report[0] & %00010001) ' CTRL
                 ser.char(c - "A" + 1)
+            elseif (usb_led & LED_CAPS_LOCK)
+                ser.char(c ^ $20)
             else
                 ser.char(c)
         "a".."z":
