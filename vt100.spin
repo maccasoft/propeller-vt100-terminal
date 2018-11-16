@@ -52,12 +52,16 @@ CON
     BELL_FREQ = 800
     BELL_MS   = 200
 
+    EEPROM_CONFIG = $7FE0
+
 VAR
 
     long  scrn[bcnt / 2]            ' screen buffer
+    long  scrn1[bcnt / 2]           ' settings screen buffer
     long  link[vga#res_m]           ' mailbox
 
     long  cursor                    ' text cursor
+    long  cursor_save
 
     long  usb_stack[128]
     byte  usb_buf[64]
@@ -68,6 +72,16 @@ VAR
     long  kb_timer
     long  kb_mod
     long  kb_str_table
+    long  kb_maps[6]
+    long  kb_curr_map
+    long  kb_settings
+
+    byte  ee_config[32]             ' 0-1 ID = "P", "X"
+                                    ' 2 = keyboard map (0-5)
+                                    ' 3 = led status
+                                    ' 4 = cursor style
+                                    ' 5 = cursor keys (vt-100, app, ws)
+                                    ' 6 = app. cursor keys (vt-100, app, ws)
 
 OBJ
 
@@ -77,39 +91,86 @@ OBJ
     vga    : "waitvid.80x25.driver"
     font   : "generic8x16-2font"
     kb     : "keyboard"
-#ifdef KEYMAP_IT
-    keymap : "keymap_it"
-#endif
-#ifdef KEYMAP_UK
-    keymap : "keymap_uk"
-#endif
-#ifdef KEYMAP_US
-    keymap : "keymap_us"
-#endif
-#ifdef KEYMAP_FR
-    keymap : "keymap_fr"
-#endif
-#ifdef KEYMAP_DE
-    keymap : "keymap_de"
-#endif
-#ifdef KEYMAP_NO
-    keymap : "keymap_no"
-#endif
+    i2c    : "i2c"
+
+    keymap_it : "keymap_it"
+    keymap_uk : "keymap_uk"
+    keymap_us : "keymap_us"
+    keymap_fr : "keymap_fr"
+    keymap_de : "keymap_de"
+    keymap_no : "keymap_no"
 
 PUB start | temp
 
     ser.StartRxTx(8, 9, 0, 115200)
     debug.StartRxTx(31, 30, 0, 115200)
+    i2c.init(29, 28, false)
+
+    i2c.eeprom_read(EEPROM_CONFIG, @ee_config, 32)
+    if ee_config[0] <> "P" or ee_config[1] <> "X"
+        bytefill(@ee_config, $00, 32)
+        ee_config[0] := "P"
+        ee_config[1] := "X"
+        ee_config[4] := constant(CURSOR_ULINE | CURSOR_FLASH)
+        ee_config[6] := 1
+        i2c.eeprom_write(EEPROM_CONFIG, @ee_config, 32)
 
     wordfill(@scrn, $20_70, bcnt)
     cursor.byte[CX] := 0
     cursor.byte[CY] := 0
-    cursor.byte{CM} := (cursor.byte{CM} & constant(!CURSOR_MASK)) | constant(CURSOR_ON | CURSOR_BLOCK | CURSOR_FLASH)
+    cursor.byte{CM} := (cursor.byte{CM} & constant(!CURSOR_MASK)) | CURSOR_ON | ee_config[4]
 
     link{0} := video | @scrn{0}
     link[1] := font#height << 24 | font.addr
     link[2] := @cursor
     vga.init(-1, @link{0})
+
+    kb_maps[0] := keymap_us.get_map
+    kb_maps[1] := keymap_it.get_map
+    kb_maps[2] := keymap_uk.get_map
+    kb_maps[3] := keymap_fr.get_map
+    kb_maps[4] := keymap_de.get_map
+    kb_maps[5] := keymap_no.get_map
+    kb_curr_map := ee_config[2]
+
+    case ee_config[5]
+        0:
+            kb_str_table_1 := @strTable
+        1:
+            kb_str_table_1 := @strTableApp
+        2:
+            kb_str_table_1 := @strTableWS
+
+    case ee_config[6]
+        0:
+            kb_str_table_2 := @strTable
+        1:
+            kb_str_table_2 := @strTableApp
+        2:
+            kb_str_table_2 := @strTableWS
+
+    kb_str_table := kb_str_table_1
+    kb_str_table_ptr := @kb_str_table
+
+    ' settings screen setup
+
+    wordfill(@scrn1, $20_70, bcnt)
+
+    wordfill(@scrn1 + constant(bcnt - (2 * vga#txt_columns + 0)) * 2, $C4_F0, 80)
+    wordfill(@scrn1 + constant(bcnt - (24 * vga#txt_columns + 0)) * 2, $C4_F0, 80)
+
+    printAt(0, 31, $F0, string("TERMINAL SETTINGS"))
+
+    printAt(7, 22, $70, string("1 - Keyboard Mapping:"))
+    printAt(9, 22, $70, string("2 - Cursor Keys:"))
+    printAt(11, 22, $70, string("3 - Application Cursor Keys:"))
+    printAt(13, 22, $70, string("4 - Cursor Style:"))
+    printAt(15, 22, $70, string("5 - Num. Lock:"))
+    printAt(17, 22, $70, string("6 - Caps Lock:"))
+    updateSettings
+
+    printAt(24, 55, $F0, string("CTRL-F10 - Save and Exit"))
+    kb_settings := 0
 
     cognew(usb_hid, @usb_stack)
 
@@ -128,15 +189,6 @@ PUB start | temp
 
     txt_cursor := @cursor
     txt_scrn := @scrn + (bcnt << 1)
-
-#ifdef CURSOR_KEY_APP
-    kb_str_table := @strTableApp
-#else
-    kb_str_table := @strTable
-#endif
-    kb_str_table_ptr := @kb_str_table
-    kb_str_table_1 := @strTable
-    kb_str_table_2 := @strTableApp
 
     esc_overlay_par := OverlayParams(@_esc, @_esc_end)
     attr_overlay_par := OverlayParams(@_attr, @_attr_end)
@@ -905,7 +957,7 @@ PUB usb_hid | retval, ifd, epd
         usb_led := LED_NUM_LOCK|LED_CAPS_LOCK|LED_SCROLL_LOCK
         hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
         waitcnt(CNT + CLKFREQ / 2)
-        usb_led := 0
+        usb_led := ee_config[3]
         hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
 
         kb_last := 0
@@ -919,12 +971,7 @@ PUB usb_hid | retval, ifd, epd
 
             elseif not showError(retval, string("Read Error"))
                 ' Successful transfer
-                'debug.char("[")
-                'debug.dec(retval)
-                'debug.str(string(" bytes] "))
-                'hexDump(@usb_buf, retval)
                 decode(@usb_buf)
-                'debug.str(string(debug#NL, debug#LF))
 
             if kb_last <> 0 and kb_timer <> 0
                 if (kb_timer - CNT) =< 0
@@ -966,10 +1013,88 @@ PRI decode(buffer) | i, k, mod
 
 PRI keyPressed(k, mod) | c, ptr
 
+    if (usb_report[0] & %00010001) and k == $43 ' CTRL-F10
+        if kb_settings == 0
+            cursor_save := cursor
+
+            cursor.byte[CX] := 0
+            cursor.byte[CY] := 0
+            cursor.byte{CM} := (cursor.byte{CM} & constant(!CURSOR_MASK)) | CURSOR_OFF
+            link{0} := @scrn1{0}
+
+            kb_settings := 1
+        else
+            i2c.eeprom_write(EEPROM_CONFIG, @ee_config, 32)
+
+            cursor := cursor_save
+            cursor.byte := (cursor.byte & constant(!CURSOR_MASK)) | CURSOR_ON | ee_config[4]
+            link{0} := @scrn{0}
+
+            kb_curr_map := ee_config[2]
+
+            case ee_config[5]
+                0:
+                    kb_str_table_1 := @strTable
+                1:
+                    kb_str_table_1 := @strTableApp
+                2:
+                    kb_str_table_1 := @strTableWS
+
+            case ee_config[6]
+                0:
+                    kb_str_table_2 := @strTable
+                1:
+                    kb_str_table_2 := @strTableApp
+                2:
+                    kb_str_table_2 := @strTableWS
+
+            kb_str_table := kb_str_table_1
+
+            kb_settings := 0
+        return
+
     if (usb_led & LED_NUM_LOCK) and k => $59 and k =< $63
-        c := keymap.map(k, 1)
+        c := WORD[kb_maps[kb_curr_map]][k * 4 + 1]
     else
-        c := keymap.map(k, mod)
+        c := WORD[kb_maps[kb_curr_map]][k * 4 + mod]
+
+
+    if kb_settings == 1
+        case c
+            "1":
+                ee_config[2]++
+                if ee_config[2] => 6
+                    ee_config[2] := 0
+                updateSettings
+            "2":
+                ee_config[5]++
+                if ee_config[5] => 3
+                    ee_config[5] := 0
+                updateSettings
+            "3":
+                ee_config[6]++
+                if ee_config[6] => 3
+                    ee_config[6] := 0
+                updateSettings
+            "4":
+                if ee_config[4] == constant(CURSOR_ULINE | CURSOR_FLASH)
+                    ee_config[4] := constant(CURSOR_BLOCK | CURSOR_FLASH)
+                elseif ee_config[4] == constant(CURSOR_BLOCK | CURSOR_FLASH)
+                    ee_config[4] := constant(CURSOR_ULINE | CURSOR_SOLID)
+                elseif ee_config[4] == constant(CURSOR_ULINE | CURSOR_SOLID)
+                    ee_config[4] := constant(CURSOR_BLOCK | CURSOR_SOLID)
+                else
+                    ee_config[4] := constant(CURSOR_ULINE | CURSOR_FLASH)
+                updateSettings
+            "5":
+                ee_config[3] ^= LED_NUM_LOCK
+                updateSettings
+            "6":
+                ee_config[3] ^= LED_CAPS_LOCK
+                updateSettings
+        return
+
+
     case c
         "A".."Z":
             if (usb_report[0] & %00010001) ' CTRL
@@ -1005,21 +1130,6 @@ PRI keyPressed(k, mod) | c, ptr
                 ptr++
 
 
-PRI decodeDebug(buffer)
-
-    hexDump(buffer, 8)
-    debug.char(debug#NL)
-
-    decode(buffer)
-
-    debug.char(debug#NL)
-
-
-PRI hexDump(buffer, len)
-    repeat while len--
-        debug.hex(BYTE[buffer++], 2)
-        debug.char(" ")
-
 PRI showError(error, message) : bool
     if error < 0
         debug.str(message)
@@ -1028,6 +1138,68 @@ PRI showError(error, message) : bool
         debug.str(string(")", debug#NL))
         return 1
     return 0
+
+
+PRI updateSettings
+
+    case ee_config[2]
+        0:
+            printAt(7, 44, $F0, string("US"))
+        1:
+            printAt(7, 44, $F0, string("IT"))
+        2:
+            printAt(7, 44, $F0, string("UK"))
+        3:
+            printAt(7, 44, $F0, string("FR"))
+        4:
+            printAt(7, 44, $F0, string("DE"))
+        5:
+            printAt(7, 44, $F0, string("NO"))
+
+    case ee_config[5]
+        0:
+            printAt(9, 39, $F0, string("VT-100      "))
+        1:
+            printAt(9, 39, $F0, string("VT-100 APPL."))
+        2:
+            printAt(9, 39, $F0, string("WordStar    "))
+
+    case ee_config[6]
+        0:
+            printAt(11, 51, $F0, string("VT-100      "))
+        1:
+            printAt(11, 51, $F0, string("VT-100 APPL."))
+        2:
+            printAt(11, 51, $F0, string("WordStar    "))
+
+    case ee_config[4]
+        CURSOR_ULINE:
+            printAt(13, 40, $F0, string("ULINE      "))
+        CURSOR_BLOCK:
+            printAt(13, 40, $F0, string("BLOCK      "))
+        CURSOR_ULINE | CURSOR_FLASH:
+            printAt(13, 40, $F0, string("BLINK ULINE"))
+        CURSOR_BLOCK | CURSOR_FLASH:
+            printAt(13, 40, $F0, string("BLINK BLOCK"))
+
+    if (ee_config[3] & LED_NUM_LOCK)
+        printAt(15, 37, $F0, string("ON "))
+    else
+        printAt(15, 37, $F0, string("OFF"))
+
+    if (ee_config[3] & LED_CAPS_LOCK)
+        printAt(17, 37, $F0, string("ON "))
+    else
+        printAt(17, 37, $F0, string("OFF"))
+
+
+PRI printAt(row, column, attr, stringptr) | xy
+
+    xy := bcnt - (row * vga#txt_columns + column)
+
+    repeat strsize(stringptr)
+        WORD[@scrn1][xy] := (BYTE[stringptr++] << 8) | attr
+        xy := xy - 1
 
 CON
 
@@ -1147,6 +1319,62 @@ strTableApp         word    @strKeySpace
                     word    @strKeyShiftLeft
                     word    @strKeyShiftRight
 
+' WordStar mode keys table
+
+strTableWS          word    @strKeySpace
+                    word    @strKeyEscape
+                    word    @strKeyBackspace
+                    word    @strKeyTabulator
+                    word    @strKeyReturn
+                    word    @strWSKeyInsert
+                    word    @strWSKeyHome
+                    word    @strWSKeyPageUp
+                    word    @strWSKeyDelete
+                    word    @strWSKeyEnd
+                    word    @strWSKeyPageDown
+                    word    @strWSKeyUp
+                    word    @strWSKeyDown
+                    word    @strWSKeyLeft
+                    word    @strWSKeyRight
+                    word    @strKeyF1
+                    word    @strKeyF2
+                    word    @strKeyF3
+                    word    @strKeyF4
+                    word    @strKeyF5
+                    word    @strKeyF6
+                    word    @strKeyF7
+                    word    @strKeyF8
+                    word    @strKeyF9
+                    word    @strKeyF10
+                    word    @strKeyF11
+                    word    @strKeyF12
+                    word    @strKeyApplication
+                    word    @strKeyCapsLock
+                    word    @strKeyPrintScreen
+                    word    @strKeyScrollLock
+                    word    @strKeyPause
+                    word    @strKeyNumLock
+                    word    @strKeyKP_Divide
+                    word    @strKeyKP_Multiply
+                    word    @strKeyKP_Subtract
+                    word    @strKeyKP_Add
+                    word    @strKeyKP_Enter
+                    word    @strKeyKP_1
+                    word    @strKeyKP_2
+                    word    @strKeyKP_3
+                    word    @strKeyKP_4
+                    word    @strKeyKP_5
+                    word    @strKeyKP_6
+                    word    @strKeyKP_7
+                    word    @strKeyKP_8
+                    word    @strKeyKP_9
+                    word    @strKeyKP_0
+                    word    @strKeyKP_Center
+                    word    @strKeyKP_Comma
+                    word    @strKeyKP_Period
+                    word    @strKeyShiftLeft
+                    word    @strKeyShiftRight
+
 ' Common default (cursor) and application mode keys
 
 strKeySpace         byte    " ", 0
@@ -1197,32 +1425,47 @@ strKeyKP_Period     byte    ".", 0
 ' Default (cursor) mode keys
 
 strKeyInsert        byte    0
-strKeyHome          byte    $1B, "[H", 0
+strKeyHome          byte    $1B, "H", 0
 strKeyPageUp        byte    0
 strKeyDelete        byte    $7F, 0
-strKeyEnd           byte    $1B, "[K", 0
+strKeyEnd           byte    $1B, "K", 0
 strKeyPageDown      byte    0
-strKeyUp            byte    $1B, "OA", 0
-strKeyDown          byte    $1B, "OB", 0
-strKeyLeft          byte    $1B, "OD", 0
-strKeyRight         byte    $1B, "OC", 0
+strKeyUp            byte    $1B, "A", 0
+strKeyDown          byte    $1B, "B", 0
+strKeyLeft          byte    $1B, "D", 0
+strKeyRight         byte    $1B, "C", 0
 strKeyShiftLeft     byte    0
 strKeyShiftRight    byte    0
 
 ' Application mode keys
 
-strAppKeyInsert     byte    CTRL_V, 0
-strAppKeyHome       byte    CTRL_Q, "S", 0
-strAppKeyPageUp     byte    CTRL_R, 0
-strAppKeyDelete     byte    CTRL_G, 0
-strAppKeyEnd        byte    CTRL_Q, "D", 0
-strAppKeyPageDown   byte    CTRL_C, 0
-strAppKeyUp         byte    CTRL_E, 0
-strAppKeyDown       byte    CTRL_X, 0
-strAppKeyLeft       byte    CTRL_S, 0
-strAppKeyRight      byte    CTRL_D, 0
-strAppKeyShiftLeft  byte    CTRL_A, 0
-strAppKeyShiftRight byte    CTRL_F, 0
+strAppKeyInsert     byte    0
+strAppKeyHome       byte    $1B, "OH", 0
+strAppKeyPageUp     byte    0
+strAppKeyDelete     byte    $7F, 0
+strAppKeyEnd        byte    $1B, "OK", 0
+strAppKeyPageDown   byte    0
+strAppKeyUp         byte    $1B, "OA", 0
+strAppKeyDown       byte    $1B, "OB", 0
+strAppKeyLeft       byte    $1B, "OD", 0
+strAppKeyRight      byte    $1B, "OC", 0
+strAppKeyShiftLeft  byte    0
+strAppKeyShiftRight byte    0
+
+' WordStar mode keys
+
+strWSKeyInsert     byte     CTRL_V, 0
+strWSKeyHome       byte     CTRL_Q, "S", 0
+strWSKeyPageUp     byte     CTRL_R, 0
+strWSKeyDelete     byte     CTRL_G, 0
+strWSKeyEnd        byte     CTRL_Q, "D", 0
+strWSKeyPageDown   byte     CTRL_C, 0
+strWSKeyUp         byte     CTRL_E, 0
+strWSKeyDown       byte     CTRL_X, 0
+strWSKeyLeft       byte     CTRL_S, 0
+strWSKeyRight      byte     CTRL_D, 0
+strWSKeyShiftLeft  byte     CTRL_A, 0
+strWSKeyShiftRight byte     CTRL_F, 0
 
 {{
 

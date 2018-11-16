@@ -131,6 +131,12 @@ vsync
                 call    #prep                   ' process cursor 1
                 mov     crs1, vier              ' |
 
+                rdlong  temp, scrn_ wz          ' get screen address
+        if_nz   wrlong  zero, scrn_             ' acknowledge screen buffer setup
+        if_nz   mov     scrn, temp
+        if_nz   add     scrn, $+1               ' scrn now points to last byte
+                long    160*25 -1
+
         if_nc   call    #blank                  ' |
         if_nc   call    #blank                  ' back porch remainder (primary only)
 
