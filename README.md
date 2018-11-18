@@ -30,10 +30,7 @@ or a stand alone programmer.
 
 Compile with the following command:
 
-`openspin -b -u -DKEYMAP_IT vt100.spin`
-
-The -DKEYMAP_IT parameter specifies the keyboard layout mapping, replace the last two letters (IT) with the country code you want to compile. The currently available
-countries are DE (Germany), FR (France, QZERTY), IT (Italy), NO (Norway), UK (United Kingdom) and US (United States).
+`openspin -b -u vt100.spin`
 
 The compiler generates a file named vt100.binary that can be written to the EEPROM using a stand alone programmer.
 
@@ -49,6 +46,16 @@ Download the [Propeller Loader](https://www.maccasoft.com/downloads/) tool, conn
 The -p parameter specifies the serial port assigned to the Prop-Plug adapter in the notation used by the operating system (/dev/ttyUSBx for Linux, COMxx for Windows).
 
 After programming the board is reset and the new firmware immediately usable.
+
+### Terminal Settings
+
+Press CTRL-F10 on the keyboard to switch to the terminal settings screen from which it is possible to configure the keyboard language mapping, cursor style, cursor
+keys mapping and more. Press the setting's key to toggle between options. Press CTRL-F10 again to permanently save the settings and return to the terminal screen.
+
+Available keyboard languages are: DE (Germany), FR (France, QZERTY), IT (Italy), NO (Norway), UK (United Kingdom) and US (United States).
+
+Available cursor key mappings are: VT-100 (reset mode sends `\ESCA`, `\ESCB`, etc.), VT-100 APPL. (set mode sends `\ESCOA`, `\ESCOB`, etc.) and WordStar which sends control characters compatible
+with the WordStar word processor.
 
 ### Terminal ANSI Codes
 
@@ -102,7 +109,7 @@ The following escape sequences can be used to control the terminal behaviour
  * **`\ESC[u`**  
        Restores the saved cursor position.  
  * **`\ESC[?1h`**  
-       Set cursor keys to application (WS-compatible).  
+       Set cursor keys to application.  
  * **`\ESC[?1l`**  
        Set cursor keys to cursor.  
  * **`\ESC[?12h`**  
