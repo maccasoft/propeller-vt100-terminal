@@ -37,7 +37,7 @@ CON
 
 CON
 
-   MAXSTR_LENGTH = 49                                   ' Maximum length of received numerical string (not including zero terminator).
+   MAXSTR_LENGTH = 16                                       ' Maximum length of received numerical string (not including zero terminator).
 
 OBJ
 

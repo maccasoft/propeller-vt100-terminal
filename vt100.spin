@@ -88,8 +88,8 @@ OBJ
     hc     : "usb-fs-host"
     ser    : "com.serial"
     debug  : "com.serial.terminal"
-    vga    : "waitvid.80x25.driver"
-    font   : "generic8x16-2font"
+    vga    : "waitvid.80x25.nine.driver"
+    font   : "generic9x16-4font"
     kb     : "keyboard"
     i2c    : "i2c"
 
@@ -121,7 +121,7 @@ PUB start | temp
     cursor.byte{CM} := (cursor.byte{CM} & constant(!CURSOR_MASK)) | CURSOR_ON | ee_config[4]
 
     link{0} := video | @scrn{0}
-    link[1] := font#height << 24 | font.addr
+    link[1] := font.addr
     link[2] := @cursor
     vga.init(-1, @link{0})
 
