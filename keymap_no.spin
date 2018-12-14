@@ -63,7 +63,7 @@ keymap
     word    "+",               "?",               "\",               kb#KeyNone         ' 0x2D
     word    "\",               "'",               "`",               kb#KeyNone         ' 0x2E
     word    $C5,               $E5,               kb#KeyNone,        kb#KeyNone         ' 0x2F   $C5 Å   $E5 å
-    word    $A8,               "^",               "~",               kb#KeyNone         ' 0x30   $A8 ¨ 
+    word    $A8,               "^",               "~",               kb#KeyNone         ' 0x30   $A8 ¨
     word    "'",               "*",               kb#KeyNone,        kb#KeyNone         ' 0x31
     word    kb#KeyNone,        kb#KeyNone,        kb#KeyNone,        kb#KeyNone         ' 0x32
     word    $D8,               $F8,               kb#KeyNone,        kb#KeyNone         ' 0x33   $D8 Ø   $F8 ø

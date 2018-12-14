@@ -50,13 +50,14 @@ PUB null
 
 PUB init(ID, mailbox)
 
+  long[mailbox][1] |= 16 << 16
   long[mailbox][3] := 0
 
   cognew(@driver, mailbox)
   cognew(@driver, mailbox | $8000)
 
   repeat
-  until long[mailbox][3] == $0000FFFF       ' OK (secondary/primary)
+  until long[mailbox][3] == $0000FFFF           ' OK (secondary/primary)
 
   long[mailbox][3] := 0                         ' release sync lock
 
@@ -85,25 +86,18 @@ driver          jmpret  $, #setup               '  -4   once
                 long    $023E3E02, $823E3E82, $223E3E22, $A23E3EA2, $0A3E3E0A, $8A3E3E8A, $2A3E3E2A, $AA3E3EAA
                 long    $02FEFE02, $82FEFE82, $22FEFE22, $A2FEFEA2, $0AFEFE0A, $8AFEFE8A, $2AFEFE2A, $AAFEFEAA
 
-' horizontal timing 720(720)  1(18) 6(108) 3(54)
-'   vertical timing 400(400) 13(13) 2(2)  34(34)
+' horizontal timing 640(640)  1(16) 6(96)  3(48)
+'   vertical timing 400(400) 12(12) 2(2)  35(35)
 
 '                               +---------------- front porch
 '                               | +-------------- sync
 '                               | |    +--------- back porch
 '                               | |    |
 vsync
-#ifdef VGA_MODE_720
-                mov     ecnt, #13+2+(34-2)
-
-                cmp     ecnt, #34 wz
-        if_ne   cmp     ecnt, #32 wz
-#else
                 mov     ecnt, #12+2+(35-2)
 
                 cmp     ecnt, #35 wz
         if_ne   cmp     ecnt, #33 wz
-#endif
         if_e    xor     sync, #$0101            ' in/active
 
                 call    #blank
@@ -132,8 +126,8 @@ vsync
                 mov     crs1, vier              ' |
 
                 rdlong  temp, scrn_ wz          ' get screen address
-        if_nz   wrlong  zero, scrn_             ' acknowledge screen buffer setup
         if_nz   mov     scrn, temp
+        if_nz   wrlong  zero, scrn_             ' acknowledge screen buffer setup
         if_nz   add     scrn, $+1               ' scrn now points to last byte
                 long    160*25 -1
 
@@ -171,7 +165,7 @@ vsync
                 jmp     #vsync                  ' next frame
 
 
-blank           mov     vscl, line              ' 256/640{720}
+blank           mov     vscl, line              ' 256/640
                 waitvid sync, #%0000            ' latch blank line
                 call    #hsync
 blank_ret       ret
@@ -181,7 +175,7 @@ chars           movd    :one, #pix+0            ' |
                 movd    :two, #col+0            ' restore initial settings
                 movs    :two, #pix+0            ' |
 
-                mov     vscl, hvis              ' 1/8{9}, speed up (one pixel per frame clock)
+                mov     vscl, hvis              ' 1/8, speed up (one pixel per frame clock)
                 mov     ecnt, #80               ' character count
 
 :one            ror     1-1, #8                 ' $0000AABB -> $BB0000AA -> $000000BB
@@ -349,17 +343,10 @@ flag            long    0                       ' loader flag storage
 swap            long    %000010 << 26 | 16      ' ror #8 vs shr #24
 sync            long    hv_idle ^ $0200
 
-#ifdef VGA_MODE_720
-wrap            long     18 << 12 | 180         '  18/180
-hvis            long      1 << 12 | 9           '   1/9
-line            long    180 << 12 | 720         ' 180/720
-many            long      0 << 12 | 1800        ' 256/1800
-#else
 wrap            long     16 << 12 | 160         '  16/160
 hvis            long      1 << 12 | 8           '   1/8
 line            long      0 << 12 | 640         ' 256/640
 many            long      0 << 12 | 1600        ' 256/1600
-#endif
 
 scrn_           long    $00000000 -12           ' |
 font_           long    $00000004 -12           ' |
@@ -420,7 +407,7 @@ setup           add     trap, par wc            ' carry set -> secondary
 
                 movi    ctrb, #%0_11111_000     ' LOGIC always (loader support)
                 movi    ctra, #%0_00001_101     ' PLL, VCO/4
-                mov     frqa, frqx              ' 25.175MHz{28.322MHz}
+                mov     frqa, frqx              ' 25.175MHz
 
                 mov     vscl, #1                ' reload as fast as possible
                 mov     zwei, scrn              ' vgrp:mode:vpin:[!Z]:scrn = 2:1:8:5:16 (%%)
@@ -453,11 +440,7 @@ setup           add     trap, par wc            ' carry set -> secondary
 ' Local data, used only once.
 
 pal0            long    dcolour|hv_idle         ' first palette entry
-#ifdef VGA_MODE_720
-frqx            long    $16A85879               ' 28.322MHz
-#else
 frqx            long    $1423D70A               ' 25.175MHz
-#endif
 mask            long    %11111111
 
 hram            long    $00007FFF               ' hub RAM mask
@@ -495,30 +478,12 @@ col             res     80 +1                   ' emitter colour data | + park p
 
 tail            fit
 
-DAT                                             ' translation table
-
-__table         word    (@__names - @__table)/2
-
-                word    res_x
-                word    res_y
-                word    res_m
-
-__names         byte    "res_x", 0
-                byte    "res_y", 0
-                byte    "res_m", 0
-
 CON
   zero    = $1F0                                ' par (dst only)
   hv_idle = $01010101 * %10 {%hv}               ' h/v sync inactive
   dcolour = %%0000_0000_0000_0000               ' default colour
 
-  txt_columns = 80                              ' |
-  txt_rows    = 25                              ' |
-#ifdef VGA_MODE_720
-  res_x   = 720                                 ' |
-#else
   res_x   = 640                                 ' |
-#endif
   res_y   = 400                                 ' |
   res_m   = 4                                   ' UI support
 

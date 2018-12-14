@@ -158,8 +158,8 @@ vsync           mov     ecnt, #13+2+(34-4)
                 mov     crs1, vier              ' |
 
                 rdlong  temp, scrn_ wz          ' get screen address
-        if_nz   wrlong  zero, scrn_             ' acknowledge screen buffer setup
         if_nz   mov     scrn, temp
+        if_nz   wrlong  zero, scrn_             ' acknowledge screen buffer setup
         if_nz   add     scrn, $+1               ' scrn now points to last byte
                 long    160*25 -1
 
@@ -540,8 +540,6 @@ CON
   zero    = $1F0                                ' par (dst only)
   hv_idle = $01010101 * %10 {%hv}               ' h/v sync inactive
 
-  txt_columns = 80                              ' |
-  txt_rows    = 25                              ' |
   res_x   = 720                                 ' |
   res_y   = 400                                 ' |
   res_m   = 4                                   ' UI support

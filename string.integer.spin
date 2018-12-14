@@ -184,4 +184,3 @@ PUB StrToBase(stringptr, base) : value | chr, index
             value := value * base + chr
     if (base == 10) and (byte[stringptr] == "-")                            ' If decimal, address negative sign; ignore otherwise
         value := - value
-

@@ -10,12 +10,12 @@ CON
     _XINFREQ = 5_000_000
     _CLKMODE = XTAL1 + PLL16X
 
-    columns  = vga#txt_columns
-    rows     = vga#txt_rows
-    bcnt     = columns * rows
+    scrn_columns   = 80             ' screen columns
+    scrn_rows      = 25             ' screen rows
+    scrn_bcnt      = scrn_columns * scrn_rows
 
-    vgrp     = 2                                          ' video pin group
-    mode     = 0                                          ' 0: FG on/off, 1: FG :==: BG
+    vgrp     = 2                    ' video pin group
+    mode     = 0                    ' 0: FG on/off, 1: FG :==: BG
 
     video    = (vgrp << 9 | mode << 8 | %%333_0) << 21
 
@@ -56,8 +56,8 @@ CON
 
 VAR
 
-    long  scrn[bcnt / 2]            ' screen buffer
-    long  scrn1[bcnt / 2]           ' settings screen buffer
+    long  scrn[scrn_bcnt / 2]       ' screen buffer
+    long  scrn1[scrn_bcnt / 2]      ' settings screen buffer
     long  link[vga#res_m]           ' mailbox
 
     long  cursor                    ' text cursor
@@ -88,8 +88,8 @@ OBJ
     hc     : "usb-fs-host"
     ser    : "com.serial"
     debug  : "com.serial.terminal"
-    vga    : "waitvid.80x25.nine.driver"
-    font   : "generic9x16-4font"
+    vga    : "waitvid.80x25.driver"
+    font   : "generic8x16-2font"
     kb     : "keyboard"
     i2c    : "i2c"
 
@@ -115,7 +115,7 @@ PUB start | temp
         ee_config[6] := 1
         i2c.eeprom_write(EEPROM_CONFIG, @ee_config, 32)
 
-    wordfill(@scrn, $20_70, bcnt)
+    wordfill(@scrn, $20_70, scrn_bcnt)
     cursor.byte[CX] := 0
     cursor.byte[CY] := 0
     cursor.byte{CM} := (cursor.byte{CM} & constant(!CURSOR_MASK)) | CURSOR_ON | ee_config[4]
@@ -154,10 +154,10 @@ PUB start | temp
 
     ' settings screen setup
 
-    wordfill(@scrn1, $20_70, bcnt)
+    wordfill(@scrn1, $20_70, scrn_bcnt)
 
-    wordfill(@scrn1 + constant(bcnt - (2 * vga#txt_columns + 0)) * 2, $C4_F0, 80)
-    wordfill(@scrn1 + constant(bcnt - (24 * vga#txt_columns + 0)) * 2, $C4_F0, 80)
+    wordfill(@scrn1 + constant((scrn_bcnt - (2 * scrn_columns + 0)) * 2), $C4_F0, 80)
+    wordfill(@scrn1 + constant((scrn_bcnt - (24 * scrn_columns + 0)) * 2), $C4_F0, 80)
 
     printAt(0, 31, $F0, string("TERMINAL SETTINGS"))
 
@@ -188,7 +188,7 @@ PUB start | temp
     aux_rx_buffer := LONG[temp][8]
 
     txt_cursor := @cursor
-    txt_scrn := @scrn + (bcnt << 1)
+    txt_scrn := @scrn + constant(scrn_bcnt << 1)
 
     esc_overlay_par := OverlayParams(@_esc, @_esc_end)
     attr_overlay_par := OverlayParams(@_attr, @_attr_end)
@@ -230,9 +230,9 @@ _loop               call    #charIn
 
                     ' write ch to vga buffer
 
-_print              cmpsub  x, #columns wc
+_print              cmpsub  x, #scrn_columns wc
         if_nc       jmp     #:l1
-                    cmp     y, #rows-1 wc,wz
+                    cmp     y, #scrn_rows-1 wc,wz
         if_c        add     y, #1
         if_nc       call    #scroll
 
@@ -257,8 +257,8 @@ _print              cmpsub  x, #columns wc
 _done               mov     t1, txt_cursor          ' updates cursor position
                     add     t1, #CX
                     mov     a,x
-                    cmp     a, #columns wz,wc
-        if_nc       mov     a, #columns-1
+                    cmp     a, #scrn_columns wz,wc
+        if_nc       mov     a, #scrn_columns-1
                     wrbyte  a, t1
                     add     t1, #1
                     wrbyte  y, t1
@@ -275,12 +275,12 @@ _bell               mov     FRQA, bell_frq
 _bs                 cmpsub  x, #1
                     jmp     #_done
 
-_tab                cmpsub  x, #columns
+_tab                cmpsub  x, #scrn_columns
                     andn    x, #7
                     add     x, #8
                     jmp     #_done
 
-_lf                 cmp     y, #rows-1 wc,wz
+_lf                 cmp     y, #scrn_rows-1 wc,wz
         if_c        add     y, #1
         if_nc       call    #scroll
                     jmp     #_done
@@ -323,9 +323,9 @@ charIn_ret          ret
 scroll              mov     t1, txt_scrn
                     sub     t1, #4
                     mov     t2, t1
-                    sub     t2, #columns << 1
+                    sub     t2, #scrn_columns << 1
                     mov     t3, txt_bcnt
-                    sub     t3, #columns
+                    sub     t3, #scrn_columns
                     shr     t3, #1
 :l1                 rdlong  a, t2
                     sub     t2, #4
@@ -339,7 +339,7 @@ scroll              mov     t1, txt_scrn
                     mov     a, t2
                     shl     a, #16
                     or      a, t2
-                    mov     t3, #columns >> 1
+                    mov     t3, #scrn_columns >> 1
 :l2                 wrlong  a, t1
                     sub     t1, #4
                     djnz    t3, #:l2
@@ -364,7 +364,7 @@ aux_rx_tail         long    0
 
 txt_cursor          long    0
 txt_scrn            long    0
-txt_bcnt            long    bcnt
+txt_bcnt            long    scrn_bcnt
 txt_attr            long    $70
 txt_cursor_s        long    0
 
@@ -502,15 +502,15 @@ _up                 cmp     args, #0 wz
 _down               cmp     args, #0 wz
         if_z        add     args, #1
                     add     y, args
-                    cmp     y, #rows wc
-        if_nc       mov     y, #rows-1
+                    cmp     y, #scrn_rows wc
+        if_nc       mov     y, #scrn_rows-1
                     jmp     #_done
 
 _right              cmp     args, #0 wz
         if_z        add     args, #1
                     add     x, args
-                    cmp     x, #columns wc
-        if_nc       mov     x, #columns-1
+                    cmp     x, #scrn_columns wc
+        if_nc       mov     x, #scrn_columns-1
                     jmp     #_done
 
 _left               cmp     args, #0 wz
@@ -520,12 +520,12 @@ _left               cmp     args, #0 wz
                     jmp     #_done
 
 _cup                mov     y, args
-                    cmp     y, #rows wc
-        if_nc       mov     y, #rows
+                    cmp     y, #scrn_rows wc
+        if_nc       mov     y, #scrn_rows
                     cmpsub  y, #1
                     mov     x, args+1
-                    cmp     x, #columns wc
-        if_nc       mov     x, #columns
+                    cmp     x, #scrn_columns wc
+        if_nc       mov     x, #scrn_columns
                     cmpsub  x, #1
                     jmp     #_done
 
@@ -719,18 +719,18 @@ _ins_line           mov     t1, y
                     add     t2, t1
 
                     mov     t3, txt_bcnt
-                    sub     t3, #columns
+                    sub     t3, #scrn_columns
                     sub     t3, t2
 
                     mov     t1, txt_scrn
                     sub     t1, txt_bcnt
                     sub     t1, txt_bcnt
 
-                    cmp     y, #rows-1 wz
+                    cmp     y, #scrn_rows-1 wz
         if_z        jmp     #:l3
 
                     mov     t2, t1
-                    add     t2, #columns << 1
+                    add     t2, #scrn_columns << 1
 
 :l1                 rdword  a, t2
                     add     t2, #2
@@ -744,7 +744,7 @@ _ins_line           mov     t1, y
                     mov     a, t2
                     shl     a, #16
                     or      a, t2
-                    mov     t3, #columns >> 1
+                    mov     t3, #scrn_columns >> 1
 :l2                 wrlong  a, t1
                     add     t1, #4
                     djnz    t3, #:l2
@@ -762,15 +762,15 @@ _del_line           mov     t1, y
                     sub     t1, t2
                     sub     t1, #2
 
-                    cmp     y, #rows-1 wz
+                    cmp     y, #scrn_rows-1 wz
         if_z        jmp     #:l3
 
                     mov     t3, txt_bcnt
                     sub     t3, t2
-                    sub     t3, #columns
+                    sub     t3, #scrn_columns
 
                     mov     t2, t1
-                    sub     t2, #columns << 1
+                    sub     t2, #scrn_columns << 1
 
 :l1                 rdword  a, t2
                     sub     t2, #2
@@ -784,7 +784,7 @@ _del_line           mov     t1, y
                     mov     a, t2
                     shl     a, #16
                     or      a, t2
-                    mov     t3, #columns >> 1
+                    mov     t3, #scrn_columns >> 1
 :l2                 wrlong  a, t1
                     sub     t1, #4
                     djnz    t3, #:l2
@@ -813,7 +813,7 @@ _el                 mov     t1, y                   ' t1 := y * 80
                     jmp     #_done
 :el0                sub     t1, x                   ' clear line from cursor right
                     sub     t1, x
-                    mov     t3, #columns
+                    mov     t3, #scrn_columns
                     sub     t3, x
                     sub     t1, #2
                     wrword  a, t1
@@ -825,7 +825,7 @@ _el                 mov     t1, y                   ' t1 := y * 80
                     wrword  a, t1
                     djnz    t3, #$-2
                     jmp     #_done
-:el2                mov     t3, #columns            ' clear entire line
+:el2                mov     t3, #scrn_columns            ' clear entire line
                     sub     t1, #2
                     wrword  a, t1
                     djnz    t3, #$-2
@@ -1195,7 +1195,7 @@ PRI updateSettings
 
 PRI printAt(row, column, attr, stringptr) | xy
 
-    xy := bcnt - (row * vga#txt_columns + column)
+    xy := scrn_bcnt - (row * scrn_columns + column)
 
     repeat strsize(stringptr)
         WORD[@scrn1][xy] := (BYTE[stringptr++] << 8) | attr
