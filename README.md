@@ -1,7 +1,7 @@
 ## Propeller ANSI / VT-100 Terminal
 
 Firmware for a serial terminal add-on board designed for the [RC2014](http://http://rc2014.co.uk/) computer. It adds VGA video output as
-80x25 text (640x400@70Hz) with ANSI / VT-100 terminal emulation, and USB keyboard input. Using a single
+80x25 text (720x400@70Hz) with ANSI / VT-100 terminal emulation, and USB keyboard input. Using a single
 [Parallax Propeller](https://www.parallax.com) microcontroller running at 80MHz.
 
 ![The board](board.jpg)
