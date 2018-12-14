@@ -88,8 +88,8 @@ OBJ
     hc     : "usb-fs-host"
     ser    : "com.serial"
     debug  : "com.serial.terminal"
-    vga    : "waitvid.80x25.driver"
-    font   : "generic8x16-2font"
+    vga    : "waitvid.80x25.nine.driver"
+    font   : "generic9x16-4font"
     kb     : "keyboard"
     i2c    : "i2c"
 
