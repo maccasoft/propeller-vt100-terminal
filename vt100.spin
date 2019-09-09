@@ -87,7 +87,6 @@ OBJ
 
     hc     : "usb-fs-host"
     ser    : "com.serial"
-    debug  : "com.serial.terminal"
     vga    : "waitvid.80x25.nine.driver"
     font   : "generic9x16-4font"
     kb     : "keyboard"
@@ -103,7 +102,6 @@ OBJ
 PUB start | temp
 
     ser.StartRxTx(8, 9, 0, 115200)
-    debug.StartRxTx(31, 30, 0, 115200)
     i2c.init(29, 28, false)
 
     i2c.eeprom_read(EEPROM_CONFIG, @ee_config, 32)
@@ -181,11 +179,6 @@ PUB start | temp
     tx_head := temp + 8
     tx_tail := temp + 12
     tx_buffer := rx_buffer + ser#BUFFER_LENGTH
-
-    temp := debug.GetMailbox
-    aux_rx_head := temp
-    aux_rx_tail := temp + 4
-    aux_rx_buffer := LONG[temp][8]
 
     txt_cursor := @cursor
     txt_scrn := @scrn + constant(scrn_bcnt << 1)
@@ -357,10 +350,6 @@ rx_tail             long    0
 tx_buffer           long    0
 tx_head             long    0
 tx_tail             long    0
-
-aux_rx_buffer       long    0
-aux_rx_head         long    0
-aux_rx_tail         long    0
 
 txt_cursor          long    0
 txt_scrn            long    0
@@ -920,35 +909,22 @@ _vt_end             fit     $1F0
 
 PUB usb_hid | retval, ifd, epd
 
-    debug.str(string(debug#CS, "USB Started", debug#NL, debug#LF))
-
     repeat
         if \hc.Enumerate < 0
             waitcnt(CNT + CLKFREQ)
             next
 
-        debug.str(string("Found device "))
-        debug.hex(hc.VendorID, 4)
-        debug.char(":")
-        debug.hex(hc.ProductID, 4)
-        debug.str(string(debug#NL, debug#LF))
-
-        if showError(\hc.Configure, string("Error configuring device"))
+        if \hc.Configure < 0
             repeat
                 waitcnt(CNT + CLKFREQ)
             while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
-            debug.str(string("Device disconnected", debug#NL, debug#LF))
             next
 
         if not (ifd := hc.FindInterface(3))
-            debug.str(string("Device has no HID interfaces", debug#NL, debug#LF))
             repeat
                 waitcnt(CNT + CLKFREQ)
             while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
-            debug.str(string("Device disconnected", debug#NL, debug#LF))
             next
-        else
-            debug.str(string("Device has HID interfaces", debug#NL, debug#LF))
 
         ' First endpoint on the first HID interface
         epd := hc.NextEndpoint(ifd)
@@ -969,7 +945,7 @@ PUB usb_hid | retval, ifd, epd
             if retval == hc#E_TIMEOUT
                 ' No data available. Try again later.
 
-            elseif not showError(retval, string("Read Error"))
+            elseifnot retval < 0
                 ' Successful transfer
                 decode(@usb_buf)
 
@@ -978,7 +954,6 @@ PUB usb_hid | retval, ifd, epd
                     keyPressed(kb_last, kb_mod)
                     kb_timer := CNT + (CLKFREQ / 1000 * REPEAT_RATE)
 
-        debug.str(string("Device disconnected", debug#NL, debug#LF))
         waitcnt(CNT + CLKFREQ)
 
 PRI decode(buffer) | i, k, mod
@@ -1128,16 +1103,6 @@ PRI keyPressed(k, mod) | c, ptr
             repeat strsize(ptr)
                 ser.char(byte[ptr])
                 ptr++
-
-
-PRI showError(error, message) : bool
-    if error < 0
-        debug.str(message)
-        debug.str(string(" (Error "))
-        debug.dec(error)
-        debug.str(string(")", debug#NL))
-        return 1
-    return 0
 
 
 PRI updateSettings
