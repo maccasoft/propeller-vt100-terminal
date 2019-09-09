@@ -1,6 +1,6 @@
 {{
     ANSI / VT-100 Terminal Emulator
-    Copyright (c) 2017-18 Marco Maccaferri and others
+    Copyright (c) 2017-19 Marco Maccaferri and others
 
     TERMS OF USE: MIT License
 }}
@@ -76,6 +76,8 @@ VAR
     long  kb_curr_map
     long  kb_settings
 
+    long  kb_nrcs_table
+
     byte  ee_config[32]             ' 0-1 ID = "P", "X"
                                     ' 2 = keyboard map (0-5)
                                     ' 3 = led status
@@ -111,7 +113,7 @@ PUB start | temp
         ee_config[1] := "X"
         ee_config[4] := constant(CURSOR_ULINE | CURSOR_FLASH)
         ee_config[6] := 1
-        i2c.eeprom_write(EEPROM_CONFIG, @ee_config, 32)
+        'i2c.eeprom_write(EEPROM_CONFIG, @ee_config, 32)
 
     wordfill(@scrn, $20_70, scrn_bcnt)
     cursor.byte[CX] := 0
@@ -149,6 +151,11 @@ PUB start | temp
 
     kb_str_table := kb_str_table_1
     kb_str_table_ptr := @kb_str_table
+
+    kb_nrcs_table_1 := @nrcs
+    kb_nrcs_table_2 := get_nrcs_map(ee_config[2])
+    kb_nrcs_table := kb_nrcs_table_1
+    kb_nrcs_table_ptr := @kb_nrcs_table
 
     ' settings screen setup
 
@@ -221,9 +228,22 @@ _loop               call    #charIn
         if_z        mov     overlay_par, esc_overlay_par
         if_z        jmp     #overlay_load
 
+                    ' NRCS
+
+_print              rdlong  t2, kb_nrcs_table_ptr
+                    mov     t1, kb_nrcs_table_1
+                    mov     t3, #12
+                    rdbyte  a, t1
+                    add     t1, #1
+                    cmp     a, ch wz
+                    rdbyte  a, t2
+                    add     t2, #1
+        if_nz       djnz    t3, #$-5
+        if_z        mov     ch, a
+
                     ' write ch to vga buffer
 
-_print              cmpsub  x, #scrn_columns wc
+                    cmpsub  x, #scrn_columns wc
         if_nc       jmp     #:l1
                     cmp     y, #scrn_rows-1 wc,wz
         if_c        add     y, #1
@@ -361,6 +381,9 @@ bell_mask           long    (1 << BELL_PINA) | (1 << BELL_PINB)
 bell_ctr            long    (%00100 << 26) | (BELL_PINB << 9) | BELL_PINA
 bell_frq            long    trunc(53.6870912 * float(BELL_FREQ))
 bell_duration       long    (80000000 / 1000) * BELL_MS
+
+kb_nrcs_table_1     long    0
+kb_nrcs_table_ptr   long    0
 
 x                   long    0
 y                   long    0
@@ -841,6 +864,8 @@ _toggles            cmp     args, #1 wz
         if_z        jmp     #_blink
                     cmp     args, #25 wz
         if_z        jmp     #_display
+                    cmp     args, #42 wz
+        if_z        jmp     #_nrcs
                     jmp     #_done
 
 _key_mode           cmp     ch, #"l" wz             ' cursor key mode
@@ -865,6 +890,13 @@ _display            rdbyte  t1, txt_cursor          ' show / hide cursor
         if_nz       or      t1, #CURSOR_ON
                     wrbyte  t1, txt_cursor
                     jmp     #_done
+
+_nrcs               cmp     ch, #"l" wz             ' cursor key mode
+        if_z        wrlong  kb_nrcs_table_1, kb_nrcs_table_ptr
+        if_nz       wrlong  kb_nrcs_table_2, kb_nrcs_table_ptr
+                    jmp     #_done
+
+kb_nrcs_table_2     long    0
 
 _cursor_report      cmp     args, #6 wz
         if_nz       jmp     #_done
@@ -986,7 +1018,7 @@ PRI decode(buffer) | i, k, mod
     if kb_last <> 0 and lookdown(kb_last : BYTE[buffer][2], BYTE[buffer][3], BYTE[buffer][4], BYTE[buffer][5], BYTE[buffer][6], BYTE[buffer][7]) == 0
         kb_last := 0
 
-PRI keyPressed(k, mod) | c, ptr
+PRI keyPressed(k, mod) | c, i, ptr
 
     if (usb_report[0] & %00010001) and k == $43 ' CTRL-F10
         if kb_settings == 0
@@ -1025,7 +1057,18 @@ PRI keyPressed(k, mod) | c, ptr
 
             kb_str_table := kb_str_table_1
 
+            kb_nrcs_table_2 := get_nrcs_map(ee_config[2])
+            if kb_nrcs_table <> kb_nrcs_table_1
+                kb_nrcs_table := kb_nrcs_table_2
+
             kb_settings := 0
+        return
+
+    if (usb_report[0] & %00010001) and k == $42 ' CTRL-F9
+        if kb_nrcs_table == kb_nrcs_table_1
+            kb_nrcs_table := kb_nrcs_table_2
+        else
+            kb_nrcs_table := kb_nrcs_table_1
         return
 
     if (usb_led & LED_NUM_LOCK) and k => $59 and k =< $63
@@ -1086,6 +1129,9 @@ PRI keyPressed(k, mod) | c, ptr
             else
                 ser.char(c)
         0..$FF:
+            repeat i from 0 to 11
+                if c == byte[kb_nrcs_table][i]
+                    c := byte[@nrcs][i]
             ser.char(c)
 
         kb#KeyNumLock:
@@ -1166,11 +1212,32 @@ PRI printAt(row, column, attr, stringptr) | xy
         WORD[@scrn1][xy] := (BYTE[stringptr++] << 8) | attr
         xy := xy - 1
 
+PUB get_nrcs_map(i)
+    case i
+        1: return @nrcs_map_it
+        2: return @nrcs_map_uk
+        3: return @nrcs_map_fr
+        4: return @nrcs_map_de
+        5: return @nrcs_map_no
+    return @nrcs
+
 CON
 
     #1, CTRL_A, CTRL_B, CTRL_C, CTRL_D, CTRL_E, CTRL_F, CTRL_G, CTRL_H, CTRL_I, CTRL_J, CTRL_K, CTRL_L, CTRL_M, CTRL_N, CTRL_O, CTRL_P, CTRL_Q, CTRL_R, CTRL_S, CTRL_T, CTRL_U, CTRL_V, CTRL_W, CTRL_X, CTRL_Y, CTRL_Z, ESC
 
 DAT
+
+nrcs                byte    $23, $40, $5B, $5C, $5D, $5E, $5F, $60, $7B, $7C, $7D, $7E
+
+nrcs_map_it         byte    $9C, $15, $F8, $87, $82, $5E, $5F, $97, $85, $95, $8A, $8D
+
+nrcs_map_uk         byte    $9C, $40, $5B, $5C, $5D, $5E, $5F, $60, $7B, $7C, $7D, $7E
+
+nrcs_map_fr         byte    $9C, $85, $F8, $87, $15, $5E, $5F, $60, $82, $97, $8A, $7E
+
+nrcs_map_de         byte    $23, $15, $8E, $99, $9A, $5E, $5F, $60, $84, $94, $81, $E1
+
+nrcs_map_no         byte    $23, $8E, $92, $E9, $8F, $9A, $5F, $84, $91, $E9, $86, $81
 
 ' Default (cursor) mode keys table
 

@@ -64,8 +64,8 @@ keymap
     word    $8D,               "^",               $7E,               kb#KeyNone         ' 0x2E
     word    $8A,               $82,               "[",               "{"                ' 0x2F
     word    "+",               "*",               "]",               "}"                ' 0x30
-    word    $97,               $15,               kb#KeyNone,        kb#KeyNone         ' 0x31
-    word    $A3,               $15,               kb#KeyNone,        kb#KeyNone         ' 0x32
+    word    $A3,               $15,               kb#KeyNone,        kb#KeyNone         ' 0x31
+    word    $97,               $15,               kb#KeyNone,        kb#KeyNone         ' 0x32
     word    $95,               $87,               "@",               kb#KeyNone         ' 0x33
     word    $85,               $F8,               "#",               kb#KeyNone         ' 0x34
     word    "\",               "|",               kb#KeyNone,        kb#KeyNone         ' 0x35
