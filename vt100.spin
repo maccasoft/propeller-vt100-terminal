@@ -72,8 +72,7 @@ VAR
     long  kb_timer
     long  kb_mod
     long  kb_str_table
-    long  kb_maps[6]
-    long  kb_curr_map
+    long  kb_map
     long  kb_settings
 
     long  kb_nrcs_table
@@ -93,13 +92,6 @@ OBJ
     font   : "generic9x16-4font"
     kb     : "keyboard"
     i2c    : "i2c"
-
-    keymap_it : "keymap_it"
-    keymap_uk : "keymap_uk"
-    keymap_us : "keymap_us"
-    keymap_fr : "keymap_fr"
-    keymap_de : "keymap_de"
-    keymap_no : "keymap_no"
 
 PUB start | temp
 
@@ -125,13 +117,7 @@ PUB start | temp
     link[2] := @cursor
     vga.init(-1, @link{0})
 
-    kb_maps[0] := keymap_us.get_map
-    kb_maps[1] := keymap_it.get_map
-    kb_maps[2] := keymap_uk.get_map
-    kb_maps[3] := keymap_fr.get_map
-    kb_maps[4] := keymap_de.get_map
-    kb_maps[5] := keymap_no.get_map
-    kb_curr_map := ee_config[2]
+    kb_map := kb.get_map(ee_config[2])
 
     case ee_config[5]
         0:
@@ -1037,7 +1023,7 @@ PRI keyPressed(k, mod) | c, i, ptr
             cursor.byte := (cursor.byte & constant(!CURSOR_MASK)) | CURSOR_ON | ee_config[4]
             link{0} := @scrn{0}
 
-            kb_curr_map := ee_config[2]
+            kb_map := kb.get_map(ee_config[2])
 
             case ee_config[5]
                 0:
@@ -1072,9 +1058,9 @@ PRI keyPressed(k, mod) | c, i, ptr
         return
 
     if (usb_led & LED_NUM_LOCK) and k => $59 and k =< $63
-        c := WORD[kb_maps[kb_curr_map]][k * 4 + 1]
+        c := WORD[kb_map][k * 4 + 1]
     else
-        c := WORD[kb_maps[kb_curr_map]][k * 4 + mod]
+        c := WORD[kb_map][k * 4 + mod]
 
 
     if kb_settings == 1
@@ -1457,15 +1443,15 @@ strKeyKP_Period     byte    ".", 0
 ' Default (cursor) mode keys
 
 strKeyInsert        byte    0
-strKeyHome          byte    $1B, "H", 0
+strKeyHome          byte    $1B, "[H", 0
 strKeyPageUp        byte    0
 strKeyDelete        byte    $7F, 0
-strKeyEnd           byte    $1B, "K", 0
+strKeyEnd           byte    $1B, "[K", 0
 strKeyPageDown      byte    0
-strKeyUp            byte    $1B, "A", 0
-strKeyDown          byte    $1B, "B", 0
-strKeyLeft          byte    $1B, "D", 0
-strKeyRight         byte    $1B, "C", 0
+strKeyUp            byte    $1B, "[A", 0
+strKeyDown          byte    $1B, "[B", 0
+strKeyLeft          byte    $1B, "[D", 0
+strKeyRight         byte    $1B, "[C", 0
 strKeyShiftLeft     byte    0
 strKeyShiftRight    byte    0
 
