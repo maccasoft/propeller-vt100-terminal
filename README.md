@@ -49,13 +49,15 @@ After programming the board is reset and the new firmware immediately usable.
 
 ### Terminal Settings
 
-Press CTRL-F10 on the keyboard to switch to the terminal settings screen from which it is possible to configure the keyboard language mapping, cursor style, cursor
-keys mapping and more. Press the setting's key to toggle between options. Press CTRL-F10 again to permanently save the settings and return to the terminal screen.
+Press **CTRL-F10** on the keyboard to switch to the terminal settings screen from which it is possible to configure the keyboard language mapping, cursor style, cursor
+keys mapping and more. Press the setting's key to toggle between options. Press **CTRL-F10** again to permanently save the settings and return to the terminal screen.
 
 Available keyboard languages are: DE (Germany), FR (France, QZERTY), IT (Italy), NO (Norway), UK (United Kingdom) and US (United States).
 
-Available cursor key mappings are: VT-100 (reset mode sends `\ESCA`, `\ESCB`, etc.), VT-100 APPL. (set mode sends `\ESCOA`, `\ESCOB`, etc.) and WordStar which sends control characters compatible
+Available cursor key mappings are: VT-100 (reset mode sends `\ESC[A`, `\ESC[B`, etc.), VT-100 APPL. (set mode sends `\ESCOA`, `\ESCOB`, etc.) and WordStar which sends control characters compatible
 with the WordStar word processor.
+
+Press **CTRL-F9** to toggle the [National Replacement Character Set](https://en.wikipedia.org/wiki/National_Replacement_Character_Set) option.
 
 ### Terminal ANSI Codes
 
@@ -126,6 +128,10 @@ The following escape sequences can be used to control the terminal behaviour
        Insert line.  
  * **`\ESC[M`**  
        Delete line.  
+ * **`\ESC[?42h**  
+       Enable National Replacement Character Set.  
+ * **`\ESC[?42l**  
+       Disable National Replacement Character Set.  
 
 Where `\ESC` is the binary character `1Bh (or 27)` and `{NUM}`, `{COUNT}`,
 `{ROW}`, `{COLUMN}` is any sequence of numeric characters like `123`.
