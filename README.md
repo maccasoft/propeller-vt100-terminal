@@ -128,9 +128,9 @@ The following escape sequences can be used to control the terminal behaviour
        Insert line.  
  * **`\ESC[M`**  
        Delete line.  
- * **`\ESC[?42h**  
+ * **`\ESC[?42h`**  
        Enable National Replacement Character Set.  
- * **`\ESC[?42l**  
+ * **`\ESC[?42l`**  
        Disable National Replacement Character Set.  
 
 Where `\ESC` is the binary character `1Bh (or 27)` and `{NUM}`, `{COUNT}`,
