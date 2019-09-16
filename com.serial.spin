@@ -168,12 +168,13 @@ entry                   mov     t1,par                'get structure address
         if_z_ne_c       or      outa,txmask
         if_z            or      dira,txmask
 
-                        test    rxtxmode,#%001  wz    'wait for idle rx line
-                        test    rxmask,ina      wc
-        if_z_ne_c       jmp     #$-2
-
                         mov     txcode,#transmit      'initialize ping-pong multitasking
 
+idle                    jmpret  rxcode,txcode         'run chunk of tx code, then return
+
+                        test    rxtxmode,#%001  wz    'wait for idle rx line
+                        test    rxmask,ina      wc
+        if_z_ne_c       jmp     #idle
 
 
 receive                 jmpret  rxcode,txcode         'run chunk of tx code, then return
@@ -186,6 +187,17 @@ receive                 jmpret  rxcode,txcode         'run chunk of tx code, the
                         mov     rxcnt,bitticks
                         shr     rxcnt,#1
                         add     rxcnt,cnt
+
+:start                  jmpret  rxcode,txcode         'run chunk of tx code, then return
+
+                        test    rxtxmode,#%001  wz    'check start bit on rx pin
+                        test    rxmask,ina      wc
+        if_z_eq_c       jmp     #receive
+
+                        mov     t1,rxcnt              'check if bit receive period done
+                        sub     t1,cnt
+                        cmps    t1,#0           wc
+        if_nc           jmp     #:start
 
 :bit                    add     rxcnt,bitticks        'ready next bit period
 
@@ -213,7 +225,7 @@ receive                 jmpret  rxcode,txcode         'run chunk of tx code, the
                         and     t2,#BUFFER_MASK
                         wrlong  t2,par
 
-                        jmp     #receive              'byte done, receive next byte
+                        jmp     #idle                 'byte done, receive next byte
 
 
 
@@ -225,6 +237,7 @@ transmit                jmpret  txcode,rxcode         'run chunk of rx code, the
                         add     t1,#1 << 2
                         rdlong  t3,t1
                         cmp     t2,t3           wz
+
         if_z            jmp     #transmit
 
                         add     t3,txbuff             'get byte and inc tail
