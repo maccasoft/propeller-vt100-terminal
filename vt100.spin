@@ -60,7 +60,6 @@ VAR
     long  cursor                    ' text cursor
     long  cursor_save
 
-    long  usb_stack[128]
     byte  usb_buf[64]
     byte  usb_report[8]
     byte  usb_led
@@ -93,11 +92,13 @@ OBJ
     kb     : "keyboard"
     i2c    : "i2c"
 
-PUB start | temp
+PUB start | retval, ifd, epd
 
     ser.StartRxTx(8, 9, 0, 115200)
-    i2c.init(29, 28, false)
 
+    ' user configuration
+
+    i2c.init(29, 28, false)
     i2c.eeprom_read(EEPROM_CONFIG, @ee_config, 32)
     if ee_config[0] <> "P" or ee_config[1] <> "X"
         bytefill(@ee_config, $00, 32)
@@ -108,6 +109,8 @@ PUB start | temp
         ee_config[8] := %00_00100 ' 250 ms / 20 cps
         'i2c.eeprom_write(EEPROM_CONFIG, @ee_config, 32)
 
+    ' initialize vga
+
     wordfill(@scrn, $20_70, scrn_bcnt)
     cursor.byte[CX] := 0
     cursor.byte[CY] := 0
@@ -117,6 +120,8 @@ PUB start | temp
     link[1] := font.addr
     link[2] := @cursor
     vga.init(-1, @link{0})
+
+    ' keyboard maps
 
     kb_map := kb.get_map(ee_config[2])
 
@@ -166,14 +171,14 @@ PUB start | temp
     printAt(24, 55, $F0, string("CTRL-F10 - Save and Exit"))
     kb_settings := 0
 
-    cognew(usb_hid, @usb_stack)
+    ' initialize terminal emulation
 
-    temp := ser.GetMailbox
-    rx_head := temp
-    rx_tail := temp + 4
-    rx_buffer := LONG[temp][8]
-    tx_head := temp + 8
-    tx_tail := temp + 12
+    retval := ser.GetMailbox
+    rx_head := retval
+    rx_tail := retval + 4
+    rx_buffer := LONG[retval][8]
+    tx_head := retval + 8
+    tx_tail := retval + 12
     tx_buffer := rx_buffer + ser#BUFFER_LENGTH
 
     txt_cursor := @cursor
@@ -183,13 +188,355 @@ PUB start | temp
     attr_overlay_par := OverlayParams(@_attr, @_attr_end)
     vt_overlay_par := OverlayParams(@_vt, @_vt_end)
 
-    coginit(cogid, @entry, 0)
+    cognew(@vt100_entry, 0)
+
+    ' USB loop
+
+    kb_delay := word[@repeatDelay][(ee_config[8] & %11_00000) >> 5]
+    kb_repeat := word[@repeatPeriod][ee_config[8] & %00_11111]
+
+    repeat
+        if \hc.Enumerate < 0
+            waitcnt(CNT + CLKFREQ)
+            next
+
+        if \hc.Configure < 0
+            repeat
+                waitcnt(CNT + CLKFREQ)
+            while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
+            next
+
+        if not (ifd := hc.FindInterface(3))
+            repeat
+                waitcnt(CNT + CLKFREQ)
+            while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
+            next
+
+        ' First endpoint on the first HID interface
+        epd := hc.NextEndpoint(ifd)
+
+        ' Blink LEDs
+        usb_led := LED_NUM_LOCK|LED_CAPS_LOCK|LED_SCROLL_LOCK
+        hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
+        waitcnt(CNT + CLKFREQ / 2)
+        usb_led := ee_config[3]
+        hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
+
+        kb_last := 0
+        kb_timer := 0
+
+        repeat while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
+            retval := \hc.InterruptRead(epd, @usb_buf, 64)
+
+            if retval == hc#E_TIMEOUT
+                ' No data available. Try again later.
+
+            elseifnot retval < 0
+                ' Successful transfer
+                decode(@usb_buf)
+
+            if kb_last <> 0 and kb_timer <> 0
+                if (kb_timer - CNT) =< 0
+                    keyPressed(kb_last, kb_mod)
+                    kb_timer := CNT + (CLKFREQ / 1000 * kb_repeat)
+
+        waitcnt(CNT + CLKFREQ)
+
+PRI decode(buffer) | i, k, mod
+
+    usb_report[0] := BYTE[buffer][0]
+    usb_report[1] := BYTE[buffer][1]
+
+    if (usb_report[0] & %00100010) <> 0         ' SHIFT
+        if (usb_report[0] & %01000000) <> 0     ' SHIFT+ALT GR ?
+            mod := 3
+        else
+            mod := 1
+    elseif (usb_report[0] & %01000000) <> 0     ' ALT GR
+        mod := 2
+    else
+        mod := 0
+
+    repeat i from 2 to 7
+        k := BYTE[buffer][i]
+        if k <> 0 and lookdown(k : usb_report[2], usb_report[3], usb_report[4], usb_report[5], usb_report[6], usb_report[7]) == 0
+            keyPressed(k, mod)
+
+            if k <> kb_last
+                kb_last := k
+                kb_mod := mod
+                kb_timer := CNT + (CLKFREQ / 1000 * kb_delay)
+
+        usb_report[i] := k
+
+    if kb_last <> 0 and lookdown(kb_last : BYTE[buffer][2], BYTE[buffer][3], BYTE[buffer][4], BYTE[buffer][5], BYTE[buffer][6], BYTE[buffer][7]) == 0
+        kb_last := 0
+
+PRI keyPressed(k, mod) | c, i, ptr
+
+    if (usb_report[0] & %00010001) and k == $43 ' CTRL-F10
+        if kb_settings == 0
+            cursor_save := cursor
+
+            cursor.byte[CX] := 0
+            cursor.byte[CY] := 0
+            cursor.byte{CM} := (cursor.byte{CM} & constant(!CURSOR_MASK)) | CURSOR_OFF
+            link{0} := @scrn1{0}
+
+            kb_settings := 1
+        else
+            i2c.eeprom_write(EEPROM_CONFIG, @ee_config, 32)
+
+            cursor := cursor_save
+            cursor.byte := (cursor.byte & constant(!CURSOR_MASK)) | CURSOR_ON | ee_config[4]
+            link{0} := @scrn{0}
+
+            kb_map := kb.get_map(ee_config[2])
+
+            case ee_config[5]
+                0:
+                    kb_str_table_1 := @strTable
+                1:
+                    kb_str_table_1 := @strTableApp
+                2:
+                    kb_str_table_1 := @strTableWS
+
+            case ee_config[6]
+                0:
+                    kb_str_table_2 := @strTable
+                1:
+                    kb_str_table_2 := @strTableApp
+                2:
+                    kb_str_table_2 := @strTableWS
+
+            kb_str_table := kb_str_table_1
+
+            kb_nrcs_table_2 := get_nrcs_map(ee_config[2])
+            if kb_nrcs_table <> kb_nrcs_table_1
+                kb_nrcs_table := kb_nrcs_table_2
+
+            kb_delay := word[@repeatDelay][(ee_config[8] & %11_00000) >> 5]
+            kb_repeat := word[@repeatPeriod][ee_config[8] & %00_11111]
+
+            kb_settings := 0
+        return
+
+    if (usb_report[0] & %00010001) and k == $42 ' CTRL-F9
+        if kb_nrcs_table == kb_nrcs_table_1
+            kb_nrcs_table := kb_nrcs_table_2
+        else
+            kb_nrcs_table := kb_nrcs_table_1
+        return
+
+    if (usb_led & LED_NUM_LOCK) and k => $59 and k =< $63
+        c := WORD[kb_map][k * 4 + 1]
+    else
+        c := WORD[kb_map][k * 4 + mod]
+
+
+    if kb_settings == 1
+        case c
+            "1":
+                ee_config[2]++
+                if ee_config[2] => 6
+                    ee_config[2] := 0
+                updateSettings
+            "2":
+                ee_config[5]++
+                if ee_config[5] => 3
+                    ee_config[5] := 0
+                updateSettings
+            "3":
+                ee_config[6]++
+                if ee_config[6] => 3
+                    ee_config[6] := 0
+                updateSettings
+            "4":
+                if ee_config[4] == constant(CURSOR_ULINE | CURSOR_FLASH)
+                    ee_config[4] := constant(CURSOR_BLOCK | CURSOR_FLASH)
+                elseif ee_config[4] == constant(CURSOR_BLOCK | CURSOR_FLASH)
+                    ee_config[4] := constant(CURSOR_ULINE | CURSOR_SOLID)
+                elseif ee_config[4] == constant(CURSOR_ULINE | CURSOR_SOLID)
+                    ee_config[4] := constant(CURSOR_BLOCK | CURSOR_SOLID)
+                else
+                    ee_config[4] := constant(CURSOR_ULINE | CURSOR_FLASH)
+                updateSettings
+            "5":
+                ee_config[3] ^= LED_NUM_LOCK
+                updateSettings
+            "6":
+                ee_config[3] ^= LED_CAPS_LOCK
+                updateSettings
+            "7":
+                ee_config[8] += %01_00000
+                ee_config[8] &= %11_11111
+                updateSettings
+            "8":
+                i := (ee_config[8] + 1) & %00_11111
+                ee_config[8] := (ee_config[8] & %11_00000) | i
+                updateSettings
+        return
+
+
+    case c
+        "A".."Z":
+            if (usb_report[0] & %00010001) ' CTRL
+                ser.char(c - "A" + 1)
+            elseif (usb_led & LED_CAPS_LOCK)
+                ser.char(c ^ $20)
+            else
+                ser.char(c)
+        "a".."z":
+            if (usb_report[0] & %00010001) ' CTRL
+                ser.char(c - "a" + 1)
+            elseif (usb_led & LED_CAPS_LOCK)
+                ser.char(c ^ $20)
+            else
+                ser.char(c)
+        0..$FF:
+            repeat i from 0 to 11
+                if c == byte[kb_nrcs_table][i]
+                    c := byte[@nrcs][i]
+            ser.char(c)
+
+        kb#KeyNumLock:
+            usb_led ^= LED_NUM_LOCK
+            hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
+        kb#KeyCapsLock:
+            usb_led ^= LED_CAPS_LOCK
+            hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
+        kb#KeyScrollLock:
+            usb_led ^= LED_SCROLL_LOCK
+            hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
+
+        kb#KeySpace..kb#KeyMaxCode:
+            ptr := @@word[kb_str_table][c - kb#KeySpace]
+            repeat strsize(ptr)
+                ser.char(byte[ptr])
+                ptr++
+
+
+PRI updateSettings | i
+
+    case ee_config[2]
+        0:
+            printAt(5, 44, $F0, string("US"))
+        1:
+            printAt(5, 44, $F0, string("IT"))
+        2:
+            printAt(5, 44, $F0, string("UK"))
+        3:
+            printAt(5, 44, $F0, string("FR"))
+        4:
+            printAt(5, 44, $F0, string("DE"))
+        5:
+            printAt(5, 44, $F0, string("NO"))
+
+    case ee_config[5]
+        0:
+            printAt(7, 39, $F0, string("VT-100      "))
+        1:
+            printAt(7, 39, $F0, string("VT-100 APPL."))
+        2:
+            printAt(7, 39, $F0, string("WordStar    "))
+
+    case ee_config[6]
+        0:
+            printAt(9, 51, $F0, string("VT-100      "))
+        1:
+            printAt(9, 51, $F0, string("VT-100 APPL."))
+        2:
+            printAt(9, 51, $F0, string("WordStar    "))
+
+    case ee_config[4]
+        CURSOR_ULINE:
+            printAt(11, 40, $F0, string("ULINE      "))
+        CURSOR_BLOCK:
+            printAt(11, 40, $F0, string("BLOCK      "))
+        CURSOR_ULINE | CURSOR_FLASH:
+            printAt(11, 40, $F0, string("BLINK ULINE"))
+        CURSOR_BLOCK | CURSOR_FLASH:
+            printAt(11, 40, $F0, string("BLINK BLOCK"))
+
+    if (ee_config[3] & LED_NUM_LOCK)
+        printAt(13, 37, $F0, string("ON "))
+    else
+        printAt(13, 37, $F0, string("OFF"))
+
+    if (ee_config[3] & LED_CAPS_LOCK)
+        printAt(15, 37, $F0, string("ON "))
+    else
+        printAt(15, 37, $F0, string("OFF"))
+
+    case ee_config[8] & %11_00000
+        %00_00000:
+            printAt(17, 44, $F0, string("250 ms"))
+        %01_00000:
+            printAt(17, 44, $F0, string("500 ms"))
+        %10_00000:
+            printAt(17, 44, $F0, string("750 ms"))
+        %11_00000:
+            printAt(17, 44, $F0, string("1 s   "))
+
+    i := printDecAt(19, 43, $F0, 10000 / word[@repeatPeriod][ee_config[8] & %00_11111], 1)
+    printAt(19, i, $F0, string(" cps  "))
+
+
+PRI printAt(row, column, attr, stringptr) | xy
+
+    xy := scrn_bcnt - (row * scrn_columns + column)
+
+    repeat strsize(stringptr)
+        WORD[@scrn1][xy--] := (BYTE[stringptr++] << 8) | attr
+
+PRI printDecAt(row, column, attr, value, decimals) | div, z_pad, xy
+
+    xy := scrn_bcnt - (row * scrn_columns + column)
+
+    div := 100_000                                        ' initialize divisor
+    z_pad~                                                ' clear zero-pad flag
+
+    repeat 6 - decimals
+        if (value => div)                                   ' printable character?
+            WORD[@scrn1][xy--] := ((value / div + "0") << 8) | attr  '   yes, print ASCII digit
+            column++
+            value //= div                                     '   update value
+            z_pad~~                                           '   set zflag
+        elseif z_pad or (div == 1)                          ' printing or last column?
+            WORD[@scrn1][xy--] := constant("0" << 8) | attr
+            column++
+        div /= 10
+
+    if decimals > 0
+        WORD[@scrn1][xy--] := constant("." << 8) | attr
+        column++
+
+        repeat decimals
+            if (value => div)                                   ' printable character?
+                WORD[@scrn1][xy--] := ((value / div + "0") << 8) | attr  '   yes, print ASCII digit
+                value //= div                                     '   update value
+            else
+                WORD[@scrn1][xy--] := constant("0" << 8) | attr
+            column++
+            div /= 10
+
+    return column
+
+PRI get_nrcs_map(i)
+    case i
+        1: return @nrcs_map_it
+        2: return @nrcs_map_uk
+        3: return @nrcs_map_fr
+        4: return @nrcs_map_de
+        5: return @nrcs_map_no
+    return @nrcs
+
 
 PRI OverlayParams (o_start, o_end) : params | len, hubend, cogend
     ' This code sets up the parameters for an overlay (in a format to increase overlay loading speed)
     len := o_end - o_start
     hubend := o_start + len - 1
-    cogend := ((@overlay_start - @entry + len) / 4) - 1
+    cogend := ((@overlay_start - @vt100_entry + len) / 4) - 1
     params := hubend << 16 + cogend
 
 
@@ -197,7 +544,7 @@ DAT
 
                     org     0
 
-entry               mov     DIRA, bell_mask
+vt100_entry         mov     DIRA, bell_mask
                     jmp     #_bell
 
 _loop               call    #charIn
@@ -940,352 +1287,15 @@ decOut_ret          ret
                     long    $0[($ - overlay_start) // 2]
 _vt_end             fit     $1F0
 
-PUB usb_hid | retval, ifd, epd
-
-    kb_delay := word[@repeatDelay][(ee_config[8] & %11_00000) >> 5]
-    kb_repeat := word[@repeatPeriod][ee_config[8] & %00_11111]
-
-    repeat
-        if \hc.Enumerate < 0
-            waitcnt(CNT + CLKFREQ)
-            next
-
-        if \hc.Configure < 0
-            repeat
-                waitcnt(CNT + CLKFREQ)
-            while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
-            next
-
-        if not (ifd := hc.FindInterface(3))
-            repeat
-                waitcnt(CNT + CLKFREQ)
-            while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
-            next
-
-        ' First endpoint on the first HID interface
-        epd := hc.NextEndpoint(ifd)
-
-        ' Blink LEDs
-        usb_led := LED_NUM_LOCK|LED_CAPS_LOCK|LED_SCROLL_LOCK
-        hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
-        waitcnt(CNT + CLKFREQ / 2)
-        usb_led := ee_config[3]
-        hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
-
-        kb_last := 0
-        kb_timer := 0
-
-        repeat while hc.GetPortConnection <> hc#PORTC_NO_DEVICE
-            retval := \hc.InterruptRead(epd, @usb_buf, 64)
-
-            if retval == hc#E_TIMEOUT
-                ' No data available. Try again later.
-
-            elseifnot retval < 0
-                ' Successful transfer
-                decode(@usb_buf)
-
-            if kb_last <> 0 and kb_timer <> 0
-                if (kb_timer - CNT) =< 0
-                    keyPressed(kb_last, kb_mod)
-                    kb_timer := CNT + (CLKFREQ / 1000 * kb_repeat)
-
-        waitcnt(CNT + CLKFREQ)
-
-PRI decode(buffer) | i, k, mod
-
-    usb_report[0] := BYTE[buffer][0]
-    usb_report[1] := BYTE[buffer][1]
-
-    if (usb_report[0] & %00100010) <> 0         ' SHIFT
-        if (usb_report[0] & %01000000) <> 0     ' SHIFT+ALT GR ?
-            mod := 3
-        else
-            mod := 1
-    elseif (usb_report[0] & %01000000) <> 0     ' ALT GR
-        mod := 2
-    else
-        mod := 0
-
-    repeat i from 2 to 7
-        k := BYTE[buffer][i]
-        if k <> 0 and lookdown(k : usb_report[2], usb_report[3], usb_report[4], usb_report[5], usb_report[6], usb_report[7]) == 0
-            keyPressed(k, mod)
-
-            if k <> kb_last
-                kb_last := k
-                kb_mod := mod
-                kb_timer := CNT + (CLKFREQ / 1000 * kb_delay)
-
-        usb_report[i] := k
-
-    if kb_last <> 0 and lookdown(kb_last : BYTE[buffer][2], BYTE[buffer][3], BYTE[buffer][4], BYTE[buffer][5], BYTE[buffer][6], BYTE[buffer][7]) == 0
-        kb_last := 0
-
-PRI keyPressed(k, mod) | c, i, ptr
-
-    if (usb_report[0] & %00010001) and k == $43 ' CTRL-F10
-        if kb_settings == 0
-            cursor_save := cursor
-
-            cursor.byte[CX] := 0
-            cursor.byte[CY] := 0
-            cursor.byte{CM} := (cursor.byte{CM} & constant(!CURSOR_MASK)) | CURSOR_OFF
-            link{0} := @scrn1{0}
-
-            kb_settings := 1
-        else
-            i2c.eeprom_write(EEPROM_CONFIG, @ee_config, 32)
-
-            cursor := cursor_save
-            cursor.byte := (cursor.byte & constant(!CURSOR_MASK)) | CURSOR_ON | ee_config[4]
-            link{0} := @scrn{0}
-
-            kb_map := kb.get_map(ee_config[2])
-
-            case ee_config[5]
-                0:
-                    kb_str_table_1 := @strTable
-                1:
-                    kb_str_table_1 := @strTableApp
-                2:
-                    kb_str_table_1 := @strTableWS
-
-            case ee_config[6]
-                0:
-                    kb_str_table_2 := @strTable
-                1:
-                    kb_str_table_2 := @strTableApp
-                2:
-                    kb_str_table_2 := @strTableWS
-
-            kb_str_table := kb_str_table_1
-
-            kb_nrcs_table_2 := get_nrcs_map(ee_config[2])
-            if kb_nrcs_table <> kb_nrcs_table_1
-                kb_nrcs_table := kb_nrcs_table_2
-
-            kb_delay := word[@repeatDelay][(ee_config[8] & %11_00000) >> 5]
-            kb_repeat := word[@repeatPeriod][ee_config[8] & %00_11111]
-
-            kb_settings := 0
-        return
-
-    if (usb_report[0] & %00010001) and k == $42 ' CTRL-F9
-        if kb_nrcs_table == kb_nrcs_table_1
-            kb_nrcs_table := kb_nrcs_table_2
-        else
-            kb_nrcs_table := kb_nrcs_table_1
-        return
-
-    if (usb_led & LED_NUM_LOCK) and k => $59 and k =< $63
-        c := WORD[kb_map][k * 4 + 1]
-    else
-        c := WORD[kb_map][k * 4 + mod]
-
-
-    if kb_settings == 1
-        case c
-            "1":
-                ee_config[2]++
-                if ee_config[2] => 6
-                    ee_config[2] := 0
-                updateSettings
-            "2":
-                ee_config[5]++
-                if ee_config[5] => 3
-                    ee_config[5] := 0
-                updateSettings
-            "3":
-                ee_config[6]++
-                if ee_config[6] => 3
-                    ee_config[6] := 0
-                updateSettings
-            "4":
-                if ee_config[4] == constant(CURSOR_ULINE | CURSOR_FLASH)
-                    ee_config[4] := constant(CURSOR_BLOCK | CURSOR_FLASH)
-                elseif ee_config[4] == constant(CURSOR_BLOCK | CURSOR_FLASH)
-                    ee_config[4] := constant(CURSOR_ULINE | CURSOR_SOLID)
-                elseif ee_config[4] == constant(CURSOR_ULINE | CURSOR_SOLID)
-                    ee_config[4] := constant(CURSOR_BLOCK | CURSOR_SOLID)
-                else
-                    ee_config[4] := constant(CURSOR_ULINE | CURSOR_FLASH)
-                updateSettings
-            "5":
-                ee_config[3] ^= LED_NUM_LOCK
-                updateSettings
-            "6":
-                ee_config[3] ^= LED_CAPS_LOCK
-                updateSettings
-            "7":
-                ee_config[8] += %01_00000
-                ee_config[8] &= %11_11111
-                updateSettings
-            "8":
-                i := (ee_config[8] + 1) & %00_11111
-                ee_config[8] := (ee_config[8] & %11_00000) | i
-                updateSettings
-        return
-
-
-    case c
-        "A".."Z":
-            if (usb_report[0] & %00010001) ' CTRL
-                ser.char(c - "A" + 1)
-            elseif (usb_led & LED_CAPS_LOCK)
-                ser.char(c ^ $20)
-            else
-                ser.char(c)
-        "a".."z":
-            if (usb_report[0] & %00010001) ' CTRL
-                ser.char(c - "a" + 1)
-            elseif (usb_led & LED_CAPS_LOCK)
-                ser.char(c ^ $20)
-            else
-                ser.char(c)
-        0..$FF:
-            repeat i from 0 to 11
-                if c == byte[kb_nrcs_table][i]
-                    c := byte[@nrcs][i]
-            ser.char(c)
-
-        kb#KeyNumLock:
-            usb_led ^= LED_NUM_LOCK
-            hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
-        kb#KeyCapsLock:
-            usb_led ^= LED_CAPS_LOCK
-            hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
-        kb#KeyScrollLock:
-            usb_led ^= LED_SCROLL_LOCK
-            hc.ControlWrite(REQ_SET_REPORT, REPORT_TYPE_OUTPUT, 0, @usb_led, 1)
-
-        kb#KeySpace..kb#KeyMaxCode:
-            ptr := @@word[kb_str_table][c - kb#KeySpace]
-            repeat strsize(ptr)
-                ser.char(byte[ptr])
-                ptr++
-
-
-PRI updateSettings | i
-
-    case ee_config[2]
-        0:
-            printAt(5, 44, $F0, string("US"))
-        1:
-            printAt(5, 44, $F0, string("IT"))
-        2:
-            printAt(5, 44, $F0, string("UK"))
-        3:
-            printAt(5, 44, $F0, string("FR"))
-        4:
-            printAt(5, 44, $F0, string("DE"))
-        5:
-            printAt(5, 44, $F0, string("NO"))
-
-    case ee_config[5]
-        0:
-            printAt(7, 39, $F0, string("VT-100      "))
-        1:
-            printAt(7, 39, $F0, string("VT-100 APPL."))
-        2:
-            printAt(7, 39, $F0, string("WordStar    "))
-
-    case ee_config[6]
-        0:
-            printAt(9, 51, $F0, string("VT-100      "))
-        1:
-            printAt(9, 51, $F0, string("VT-100 APPL."))
-        2:
-            printAt(9, 51, $F0, string("WordStar    "))
-
-    case ee_config[4]
-        CURSOR_ULINE:
-            printAt(11, 40, $F0, string("ULINE      "))
-        CURSOR_BLOCK:
-            printAt(11, 40, $F0, string("BLOCK      "))
-        CURSOR_ULINE | CURSOR_FLASH:
-            printAt(11, 40, $F0, string("BLINK ULINE"))
-        CURSOR_BLOCK | CURSOR_FLASH:
-            printAt(11, 40, $F0, string("BLINK BLOCK"))
-
-    if (ee_config[3] & LED_NUM_LOCK)
-        printAt(13, 37, $F0, string("ON "))
-    else
-        printAt(13, 37, $F0, string("OFF"))
-
-    if (ee_config[3] & LED_CAPS_LOCK)
-        printAt(15, 37, $F0, string("ON "))
-    else
-        printAt(15, 37, $F0, string("OFF"))
-
-    case ee_config[8] & %11_00000
-        %00_00000:
-            printAt(17, 44, $F0, string("250 ms"))
-        %01_00000:
-            printAt(17, 44, $F0, string("500 ms"))
-        %10_00000:
-            printAt(17, 44, $F0, string("750 ms"))
-        %11_00000:
-            printAt(17, 44, $F0, string("1 s   "))
-
-    i := printDecAt(19, 43, $F0, 10000 / word[@repeatPeriod][ee_config[8] & %00_11111], 1)
-    printAt(19, i, $F0, string(" cps  "))
-
-
-PRI printAt(row, column, attr, stringptr) | xy
-
-    xy := scrn_bcnt - (row * scrn_columns + column)
-
-    repeat strsize(stringptr)
-        WORD[@scrn1][xy--] := (BYTE[stringptr++] << 8) | attr
-
-PRI printDecAt(row, column, attr, value, decimals) | div, z_pad, xy
-
-    xy := scrn_bcnt - (row * scrn_columns + column)
-
-    div := 100_000                                        ' initialize divisor
-    z_pad~                                                ' clear zero-pad flag
-
-    repeat 6 - decimals
-        if (value => div)                                   ' printable character?
-            WORD[@scrn1][xy--] := ((value / div + "0") << 8) | attr  '   yes, print ASCII digit
-            column++
-            value //= div                                     '   update value
-            z_pad~~                                           '   set zflag
-        elseif z_pad or (div == 1)                          ' printing or last column?
-            WORD[@scrn1][xy--] := constant("0" << 8) | attr
-            column++
-        div /= 10
-
-    if decimals > 0
-        WORD[@scrn1][xy--] := constant("." << 8) | attr
-        column++
-
-        repeat decimals
-            if (value => div)                                   ' printable character?
-                WORD[@scrn1][xy--] := ((value / div + "0") << 8) | attr  '   yes, print ASCII digit
-                value //= div                                     '   update value
-            else
-                WORD[@scrn1][xy--] := constant("0" << 8) | attr
-            column++
-            div /= 10
-
-    return column
-
-PUB get_nrcs_map(i)
-    case i
-        1: return @nrcs_map_it
-        2: return @nrcs_map_uk
-        3: return @nrcs_map_fr
-        4: return @nrcs_map_de
-        5: return @nrcs_map_no
-    return @nrcs
 
 CON
 
     #1, CTRL_A, CTRL_B, CTRL_C, CTRL_D, CTRL_E, CTRL_F, CTRL_G, CTRL_H, CTRL_I, CTRL_J, CTRL_K, CTRL_L, CTRL_M, CTRL_N, CTRL_O, CTRL_P, CTRL_Q, CTRL_R, CTRL_S, CTRL_T, CTRL_U, CTRL_V, CTRL_W, CTRL_X, CTRL_Y, CTRL_Z, ESC
 
+
 DAT
+
+' National Code Replacement System maps
 
 nrcs                byte    $23, $40, $5B, $5C, $5D, $5E, $5F, $60, $7B, $7C, $7D, $7E
 
