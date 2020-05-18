@@ -44,9 +44,6 @@ CON
     LED_CAPS_LOCK = $02
     LED_SCROLL_LOCK = $04
 
-    REPEAT_DELAY = 400
-    REPEAT_RATE = 80
-
     BELL_PINA = 14
     BELL_PINB = 15
     BELL_FREQ = 800
@@ -67,6 +64,9 @@ VAR
     byte  usb_buf[64]
     byte  usb_report[8]
     byte  usb_led
+
+    word  kb_delay
+    word  kb_repeat
 
     long  kb_last
     long  kb_timer
@@ -105,6 +105,7 @@ PUB start | temp
         ee_config[1] := "X"
         ee_config[4] := constant(CURSOR_ULINE | CURSOR_FLASH)
         ee_config[6] := 1
+        ee_config[8] := %00_00100 ' 250 ms / 20 cps
         'i2c.eeprom_write(EEPROM_CONFIG, @ee_config, 32)
 
     wordfill(@scrn, $20_70, scrn_bcnt)
@@ -152,12 +153,14 @@ PUB start | temp
 
     printAt(0, 31, $F0, string("TERMINAL SETTINGS"))
 
-    printAt(7, 22, $70, string("1 - Keyboard Mapping:"))
-    printAt(9, 22, $70, string("2 - Cursor Keys:"))
-    printAt(11, 22, $70, string("3 - Application Cursor Keys:"))
-    printAt(13, 22, $70, string("4 - Cursor Style:"))
-    printAt(15, 22, $70, string("5 - Num. Lock:"))
-    printAt(17, 22, $70, string("6 - Caps Lock:"))
+    printAt(5, 22, $70, string("1 - Keyboard Mapping:"))
+    printAt(7, 22, $70, string("2 - Cursor Keys:"))
+    printAt(9, 22, $70, string("3 - Application Cursor Keys:"))
+    printAt(11, 22, $70, string("4 - Cursor Style:"))
+    printAt(13, 22, $70, string("5 - Num. Lock:"))
+    printAt(15, 22, $70, string("6 - Caps Lock:"))
+    printAt(17, 22, $70, string("7 - Key Repeat Delay:"))
+    printAt(19, 22, $70, string("8 - Key Repeat Rate:"))
     updateSettings
 
     printAt(24, 55, $F0, string("CTRL-F10 - Save and Exit"))
@@ -939,6 +942,9 @@ _vt_end             fit     $1F0
 
 PUB usb_hid | retval, ifd, epd
 
+    kb_delay := word[@repeatDelay][(ee_config[8] & %11_00000) >> 5]
+    kb_repeat := word[@repeatPeriod][ee_config[8] & %00_11111]
+
     repeat
         if \hc.Enumerate < 0
             waitcnt(CNT + CLKFREQ)
@@ -982,7 +988,7 @@ PUB usb_hid | retval, ifd, epd
             if kb_last <> 0 and kb_timer <> 0
                 if (kb_timer - CNT) =< 0
                     keyPressed(kb_last, kb_mod)
-                    kb_timer := CNT + (CLKFREQ / 1000 * REPEAT_RATE)
+                    kb_timer := CNT + (CLKFREQ / 1000 * kb_repeat)
 
         waitcnt(CNT + CLKFREQ)
 
@@ -1009,7 +1015,7 @@ PRI decode(buffer) | i, k, mod
             if k <> kb_last
                 kb_last := k
                 kb_mod := mod
-                kb_timer := CNT + (CLKFREQ / 1000 * REPEAT_DELAY)
+                kb_timer := CNT + (CLKFREQ / 1000 * kb_delay)
 
         usb_report[i] := k
 
@@ -1058,6 +1064,9 @@ PRI keyPressed(k, mod) | c, i, ptr
             kb_nrcs_table_2 := get_nrcs_map(ee_config[2])
             if kb_nrcs_table <> kb_nrcs_table_1
                 kb_nrcs_table := kb_nrcs_table_2
+
+            kb_delay := word[@repeatDelay][(ee_config[8] & %11_00000) >> 5]
+            kb_repeat := word[@repeatPeriod][ee_config[8] & %00_11111]
 
             kb_settings := 0
         return
@@ -1108,6 +1117,14 @@ PRI keyPressed(k, mod) | c, i, ptr
             "6":
                 ee_config[3] ^= LED_CAPS_LOCK
                 updateSettings
+            "7":
+                ee_config[8] += %01_00000
+                ee_config[8] &= %11_11111
+                updateSettings
+            "8":
+                i := (ee_config[8] + 1) & %00_11111
+                ee_config[8] := (ee_config[8] & %11_00000) | i
+                updateSettings
         return
 
 
@@ -1149,57 +1166,70 @@ PRI keyPressed(k, mod) | c, i, ptr
                 ptr++
 
 
-PRI updateSettings
+PRI updateSettings | i
 
     case ee_config[2]
         0:
-            printAt(7, 44, $F0, string("US"))
+            printAt(5, 44, $F0, string("US"))
         1:
-            printAt(7, 44, $F0, string("IT"))
+            printAt(5, 44, $F0, string("IT"))
         2:
-            printAt(7, 44, $F0, string("UK"))
+            printAt(5, 44, $F0, string("UK"))
         3:
-            printAt(7, 44, $F0, string("FR"))
+            printAt(5, 44, $F0, string("FR"))
         4:
-            printAt(7, 44, $F0, string("DE"))
+            printAt(5, 44, $F0, string("DE"))
         5:
-            printAt(7, 44, $F0, string("NO"))
+            printAt(5, 44, $F0, string("NO"))
 
     case ee_config[5]
         0:
-            printAt(9, 39, $F0, string("VT-100      "))
+            printAt(7, 39, $F0, string("VT-100      "))
         1:
-            printAt(9, 39, $F0, string("VT-100 APPL."))
+            printAt(7, 39, $F0, string("VT-100 APPL."))
         2:
-            printAt(9, 39, $F0, string("WordStar    "))
+            printAt(7, 39, $F0, string("WordStar    "))
 
     case ee_config[6]
         0:
-            printAt(11, 51, $F0, string("VT-100      "))
+            printAt(9, 51, $F0, string("VT-100      "))
         1:
-            printAt(11, 51, $F0, string("VT-100 APPL."))
+            printAt(9, 51, $F0, string("VT-100 APPL."))
         2:
-            printAt(11, 51, $F0, string("WordStar    "))
+            printAt(9, 51, $F0, string("WordStar    "))
 
     case ee_config[4]
         CURSOR_ULINE:
-            printAt(13, 40, $F0, string("ULINE      "))
+            printAt(11, 40, $F0, string("ULINE      "))
         CURSOR_BLOCK:
-            printAt(13, 40, $F0, string("BLOCK      "))
+            printAt(11, 40, $F0, string("BLOCK      "))
         CURSOR_ULINE | CURSOR_FLASH:
-            printAt(13, 40, $F0, string("BLINK ULINE"))
+            printAt(11, 40, $F0, string("BLINK ULINE"))
         CURSOR_BLOCK | CURSOR_FLASH:
-            printAt(13, 40, $F0, string("BLINK BLOCK"))
+            printAt(11, 40, $F0, string("BLINK BLOCK"))
 
     if (ee_config[3] & LED_NUM_LOCK)
+        printAt(13, 37, $F0, string("ON "))
+    else
+        printAt(13, 37, $F0, string("OFF"))
+
+    if (ee_config[3] & LED_CAPS_LOCK)
         printAt(15, 37, $F0, string("ON "))
     else
         printAt(15, 37, $F0, string("OFF"))
 
-    if (ee_config[3] & LED_CAPS_LOCK)
-        printAt(17, 37, $F0, string("ON "))
-    else
-        printAt(17, 37, $F0, string("OFF"))
+    case ee_config[8] & %11_00000
+        %00_00000:
+            printAt(17, 44, $F0, string("250 ms"))
+        %01_00000:
+            printAt(17, 44, $F0, string("500 ms"))
+        %10_00000:
+            printAt(17, 44, $F0, string("750 ms"))
+        %11_00000:
+            printAt(17, 44, $F0, string("1 s   "))
+
+    i := printDecAt(19, 43, $F0, 10000 / word[@repeatPeriod][ee_config[8] & %00_11111], 1)
+    printAt(19, i, $F0, string(" cps  "))
 
 
 PRI printAt(row, column, attr, stringptr) | xy
@@ -1207,8 +1237,40 @@ PRI printAt(row, column, attr, stringptr) | xy
     xy := scrn_bcnt - (row * scrn_columns + column)
 
     repeat strsize(stringptr)
-        WORD[@scrn1][xy] := (BYTE[stringptr++] << 8) | attr
-        xy := xy - 1
+        WORD[@scrn1][xy--] := (BYTE[stringptr++] << 8) | attr
+
+PRI printDecAt(row, column, attr, value, decimals) | div, z_pad, xy
+
+    xy := scrn_bcnt - (row * scrn_columns + column)
+
+    div := 100_000                                        ' initialize divisor
+    z_pad~                                                ' clear zero-pad flag
+
+    repeat 6 - decimals
+        if (value => div)                                   ' printable character?
+            WORD[@scrn1][xy--] := ((value / div + "0") << 8) | attr  '   yes, print ASCII digit
+            column++
+            value //= div                                     '   update value
+            z_pad~~                                           '   set zflag
+        elseif z_pad or (div == 1)                          ' printing or last column?
+            WORD[@scrn1][xy--] := constant("0" << 8) | attr
+            column++
+        div /= 10
+
+    if decimals > 0
+        WORD[@scrn1][xy--] := constant("." << 8) | attr
+        column++
+
+        repeat decimals
+            if (value => div)                                   ' printable character?
+                WORD[@scrn1][xy--] := ((value / div + "0") << 8) | attr  '   yes, print ASCII digit
+                value //= div                                     '   update value
+            else
+                WORD[@scrn1][xy--] := constant("0" << 8) | attr
+            column++
+            div /= 10
+
+    return column
 
 PUB get_nrcs_map(i)
     case i
@@ -1236,6 +1298,14 @@ nrcs_map_fr         byte    $9C, $85, $F8, $87, $15, $5E, $5F, $60, $82, $97, $8
 nrcs_map_de         byte    $23, $15, $8E, $99, $9A, $5E, $5F, $60, $84, $94, $81, $E1
 
 nrcs_map_no         byte    $23, $8E, $92, $E9, $8F, $9A, $5F, $84, $91, $E9, $86, $81
+
+' Key repeat timings
+
+repeatDelay         word    250, 500, 750, 1000
+
+repeatPeriod        word    33,  37,  42,  46,  50,  54,  58,  63,  67,  75,  83,  92
+                    word    100, 109, 116, 125, 133, 149, 167, 182, 200, 217, 232, 250
+                    word    270, 303, 333, 370, 400, 435, 470, 500
 
 ' Default (cursor) mode keys table
 
