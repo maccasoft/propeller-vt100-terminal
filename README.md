@@ -103,6 +103,8 @@ The following escape sequences can be used to control the terminal behaviour
         **`40..47`** - Background color (black, red, green, yellow, blue, magenta, cyan, white)  
         **`48;5;{NUM}`** - Background color to {NUM} (0-7)  
         **`49;{NUM}`** - Default background color  
+ * **`\ESC[5n`**  
+       Terminal status request. Response is always `\ESC[0n` indicating the terminal is in good condition.  
  * **`\ESC[6n`**  
        Reports the cursor position to the application as (as though typed at the
        keyboard) `\ESC[{ROW];{COLUMN}R`  

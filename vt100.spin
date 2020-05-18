@@ -648,7 +648,7 @@ _vt                 cmp     ch_mod, #"?" wz
                     cmp     ch, #"M" wz
         if_z        jmp     #_del_line
                     cmp     ch, #"n" wz
-        if_z        jmp     #_cursor_report
+        if_z        jmp     #_dev_status
                     cmp     ch, #"q" wz
         if_z        jmp     #_cursor_style
                     cmp     ch, #"s" wz
@@ -883,6 +883,18 @@ _nrcs               cmp     ch, #"l" wz             ' cursor key mode
                     jmp     #_done
 
 kb_nrcs_table_2     long    0
+
+_dev_status         cmp     args, #5 wz
+        if_nz       jmp     #_cursor_report
+                    mov     ch, #$1B
+                    call    #charOut
+                    mov     ch, #"["
+                    call    #charOut
+                    mov     ch, #"0"
+                    call    #charOut
+                    mov     ch, #"n"
+                    call    #charOut
+                    jmp     #_done
 
 _cursor_report      cmp     args, #6 wz
         if_nz       jmp     #_done
