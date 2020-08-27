@@ -1,6 +1,6 @@
 {{
     ANSI / VT-100 Terminal Emulator
-    Copyright (c) 2017-19 Marco Maccaferri and others
+    Copyright (c) 2017-20 Marco Maccaferri and others
 
     TERMS OF USE: MIT License
 }}
@@ -88,7 +88,6 @@ OBJ
     hc     : "usb-fs-host"
     ser    : "com.serial"
     vga    : "waitvid.80x25.nine.driver"
-    font   : "generic9x16-4font"
     kb     : "keyboard"
     i2c    : "i2c"
 
@@ -117,7 +116,6 @@ PUB start | retval, ifd, epd
     cursor.byte{CM} := (cursor.byte{CM} & constant(!CURSOR_MASK)) | CURSOR_ON | ee_config[4]
 
     link{0} := video | @scrn{0}
-    link[1] := font.addr
     link[2] := @cursor
     vga.init(-1, @link{0})
 
