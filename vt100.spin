@@ -543,6 +543,11 @@ DAT
                     org     0
 
 vt100_entry         mov     DIRA, bell_mask
+
+                    mov     scroll_top, txt_scrn
+                    mov     scroll_count, txt_bcnt
+                    sub     scroll_count, #scrn_columns
+
                     jmp     #_bell
 
 _loop               call    #charIn
@@ -667,12 +672,11 @@ charIn              rdlong  t1, rx_head
                     wrlong  t2, rx_tail
 charIn_ret          ret
 
-scroll              mov     t1, txt_scrn
+scroll              mov     t1, scroll_top
                     sub     t1, #4
                     mov     t2, t1
                     sub     t2, #scrn_columns << 1
-                    mov     t3, txt_bcnt
-                    sub     t3, #scrn_columns
+                    mov     t3, scroll_count
                     shr     t3, #1
 :l1                 rdlong  a, t2
                     sub     t2, #4
@@ -692,6 +696,9 @@ scroll              mov     t1, txt_scrn
                     djnz    t3, #:l2
 
 scroll_ret          ret
+
+scroll_top          long    0
+scroll_count        long    0
 
 ' initialised data and/or presets
 
@@ -832,6 +839,8 @@ _esc                mov     argc, #0
         if_z        jmp     #_cup
                     cmp     ch, #"f" wz
         if_z        jmp     #_cup
+                    cmp     ch, #"r" wz
+        if_z        jmp     #_stbm
                     cmp     ch, #"m" wz
         if_z        mov     overlay_par, attr_overlay_par
         if_z        jmp     #overlay_load
@@ -873,6 +882,35 @@ _cup                mov     y, args
                     cmp     x, #scrn_columns wc
         if_nc       mov     x, #scrn_columns
                     cmpsub  x, #1
+                    jmp     #_done
+
+_stbm               cmp     argc, #0   wz
+        if_z        jmp     #:stbm1
+                    cmp     args, #1        wc,wz
+        if_c        jmp     #_done
+                    cmp     args, #25-1     wc,wz
+        if_nc       jmp     #_done
+                    cmp     args + 1, #25+1 wc,wz
+        if_nc       jmp     #_done
+                    cmp     args + 1, args  wc,wz
+        if_c_or_z   jmp     #_done
+
+:stbm1              mov     scroll_top, txt_scrn
+                    mov     scroll_count, txt_bcnt
+                    sub     scroll_count, #scrn_columns
+                    cmp     argc, #0   wz
+        if_z        jmp     #_done
+
+                    mov     y, args
+                    sub     y, #1           wc,wz
+        if_nz       sub     scroll_top, #scrn_columns << 1
+        if_nz       sub     scroll_count, #scrn_columns
+        if_nz       djnz    y, #$-2
+
+                    mov     y, #25
+                    sub     y, args + 1     wc,wz
+        if_nz       sub     scroll_count, #scrn_columns
+        if_nz       djnz    y, #$-1
                     jmp     #_done
 
                     long    $0[($ - overlay_start) // 2]

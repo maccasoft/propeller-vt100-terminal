@@ -89,6 +89,8 @@ The following escape sequences can be used to control the terminal behaviour
        Clear entire screen.  
  * **`\ESC[{ROW];{COLUMN}f`**  
        Same as `\ESC[{ROW];{COLUMN}H`.  
+ * **`\ESC[{TOP};{BOTTOM}r`**  
+       Selects top and bottom margins, defining the scrolling region. If TOP and BOTTOM are not selected, the complete screen is used (no margins).  
  * **`\ESC[{NUM1};...;{NUMn}m`**  
        Sets multiple display attribute settings. The following lists supported attributes:  
         **`0`** - Reset all attributes  
@@ -136,7 +138,8 @@ The following escape sequences can be used to control the terminal behaviour
        Disable National Replacement Character Set.  
 
 Where `\ESC` is the binary character `1Bh (or 27)` and `{NUM}`, `{COUNT}`,
-`{ROW}`, `{COLUMN}` is any sequence of numeric characters like `123`.
+`{ROW}`, `{COLUMN}`, `{TOP}`, `{BOTTOM}` is any sequence of numeric characters
+like `123`.
 
 ### Usage from BASIC
 
