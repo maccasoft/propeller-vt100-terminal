@@ -379,23 +379,23 @@ PRI keyPressed(k, mod) | c, i, ptr
     case c
         "A".."Z":
             if (usb_report[0] & %00010001) ' CTRL
-                ser.char(c - "A" + 1)
+                ser.Char(c - "A" + 1)
             elseif (usb_led & LED_CAPS_LOCK)
-                ser.char(c ^ $20)
+                ser.Char(c ^ $20)
             else
-                ser.char(c)
+                ser.Char(c)
         "a".."z":
             if (usb_report[0] & %00010001) ' CTRL
-                ser.char(c - "a" + 1)
+                ser.Char(c - "a" + 1)
             elseif (usb_led & LED_CAPS_LOCK)
-                ser.char(c ^ $20)
+                ser.Char(c ^ $20)
             else
-                ser.char(c)
+                ser.Char(c)
         0..$FF:
             repeat i from 0 to 11
                 if c == byte[kb_nrcs_table][i]
                     c := byte[@nrcs][i]
-            ser.char(c)
+            ser.Char(c)
 
         kb#KeyNumLock:
             usb_led ^= LED_NUM_LOCK
@@ -410,7 +410,7 @@ PRI keyPressed(k, mod) | c, i, ptr
         kb#KeySpace..kb#KeyMaxCode:
             ptr := @@word[kb_str_table][c - kb#KeySpace]
             repeat strsize(ptr)
-                ser.char(byte[ptr])
+                ser.Char(byte[ptr])
                 ptr++
 
 
@@ -1326,8 +1326,34 @@ _vt_end             fit     $1F0
 
 CON
 
-    #1, CTRL_A, CTRL_B, CTRL_C, CTRL_D, CTRL_E, CTRL_F, CTRL_G, CTRL_H, CTRL_I, CTRL_J, CTRL_K, CTRL_L, CTRL_M, CTRL_N, CTRL_O, CTRL_P, CTRL_Q, CTRL_R, CTRL_S, CTRL_T, CTRL_U, CTRL_V, CTRL_W, CTRL_X, CTRL_Y, CTRL_Z, ESC
-
+    #1
+    CTRL_A
+    CTRL_B
+    CTRL_C
+    CTRL_D
+    CTRL_E
+    CTRL_F
+    CTRL_G
+    CTRL_H
+    CTRL_I
+    CTRL_J
+    CTRL_K
+    CTRL_L
+    CTRL_M
+    CTRL_N
+    CTRL_O
+    CTRL_P
+    CTRL_Q
+    CTRL_R
+    CTRL_S
+    CTRL_T
+    CTRL_U
+    CTRL_V
+    CTRL_W
+    CTRL_X
+    CTRL_Y
+    CTRL_Z
+    ESC
 
 DAT
 

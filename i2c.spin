@@ -73,8 +73,8 @@ CON
   ' i2c bus contants
   _i2cNAK         = 1
   _i2cACK         = 0
-  _PinHigh        = 1
-  _PinLow         = 0
+  _pinHigh        = 1
+  _pinLow         = 0
   _i2cByteAddress = 8
   _i2cWordAddress = 16
 
@@ -93,7 +93,7 @@ VAR
   word  i2cSDA, i2cSCL
   long  ErrorState
   long  i2cStarted
-  long  lastackbit
+  long  lastAckBit
   byte  driveLines
 
 '' ******************************************************************************
@@ -108,9 +108,9 @@ PUB Start : okay
     dira[i2cSDA] ~
     dira[i2cSCL] ~
     ' init the last ack bit
-    lastackbit := 1 ' default to NAK
+    lastAckBit := 1 ' default to NAK
     ' init no error state
-    ErrorState := _none
+    ErrorState := _None
 
 
 PUB Stop : okay
@@ -121,7 +121,7 @@ PUB Stop : okay
     dira[i2cSDA] ~
     dira[i2cSCL] ~
     ' init no error state
-    ErrorState := _none
+    ErrorState := _None
 
 
 PUB getLastAckBit : ackbit
@@ -145,7 +145,7 @@ PUB init(_i2cSDA, _i2cSCL, _driveSCLLine): okay
        dira[i2cSCL] ~~
 
      ' init no error state
-     ErrorState := _none
+     ErrorState := _None
      i2cStarted := true
   else
      ErrorState := _ObjNotInit
@@ -162,7 +162,7 @@ PUB getError : errorCode
 
 PUB clearError
   ' clear the error state variable
-  ErrorState := _none
+  ErrorState := _None
 
 
 PUB isStarted : i2cState
@@ -173,7 +173,7 @@ PUB isStarted : i2cState
 PUB testBus : errorCode
   ' put both lines to input
   ' they should both go high from the resistor pullup's
-  ErrorState := _none
+  ErrorState := _None
   dira[i2cSDA] ~
   dira[i2cSCL] ~
   if ina[i2cSDA] <> _pinHigh
@@ -223,7 +223,7 @@ PUB eeprom_read(deviceRegister, dataBuffer, dataSize) : ackbit
   else
     ackbit := _i2cNAK
   ' set the last i2cACK bit
-  lastackbit := ackbit
+  lastAckBit := ackbit
   return ackbit
 
 
@@ -233,7 +233,7 @@ PUB eeprom_write(deviceRegister, dataBuffer, dataSize) : ackbit
   ackbit := _i2cACK
 
   if i2cStarted == true
-    i2cstart
+    i2cStart
     ackbit := (ackbit << 1) | i2cWrite(EEPROM | 0, 8)
 
     ' send a 16 bit deviceRegister
@@ -285,7 +285,7 @@ PUB readLocation(deviceAddress, deviceRegister, addressbits, databits) : i2cData
   else
     ackbit := _i2cNAK
   ' set the last i2cACK bit
-  lastackbit := ackbit
+  lastAckBit := ackbit
   ' return the data
   return i2cData
 
@@ -296,7 +296,7 @@ PUB writeLocation(deviceAddress, deviceRegister, i2cDataValue, addressbits,datab
   ackbit := _i2cACK
 
   if i2cStarted == true
-    i2cstart
+    i2cStart
     ackbit := (ackbit << 1) | i2cWrite(deviceAddress | 0,8)
 
     ' cope with bigger than 8 bit deviceRegisters, i.e. EEPROM's use 16 bit or more
@@ -365,29 +365,29 @@ PUB i2cWrite(i2cData, i2cBits) : ackbit
     dira[i2cSCL] ~~
 
      ' init the clock line
-    outa[i2cSCL] := _PinLow
+    outa[i2cSCL] := _pinLow
 
     ' send the data
-    i2cData <<= (32 - i2cbits)
+    i2cData <<= (32 - i2cBits)
     repeat 8
       ' set the SDA while the SCL is LOW
       outa[i2cSDA] := (i2cData <-= 1) & 1
       ' toggle SCL HIGH
-      outa[i2cSCL] := _PinHigh
+      outa[i2cSCL] := _pinHigh
       ' toogle SCL LOW
-      outa[i2cSCL] := _PinLow
+      outa[i2cSCL] := _pinLow
 
     ' setup for ACK - pin to input
     dira[i2cSDA] ~
 
     ' read in the ACK
-    outa[i2cSCL] := _PinHigh
+    outa[i2cSCL] := _pinHigh
     ackbit := ina[i2cSDA]
-    outa[i2cSCL] := _PinLow
+    outa[i2cSCL] := _pinLow
 
     ' leave the SDA pin LOW
     dira[i2cSDA] ~~
-    outa[i2cSDA] := _PinLow
+    outa[i2cSDA] := _pinLow
 
   ' return the ackbit
   return ackbit
@@ -400,20 +400,20 @@ PUB i2cRead(ackbit): i2cData
     ' set the SCL to output and the SDA to input
     dira[i2cSCL] ~~
     dira[i2cSDA] ~
-    outa[i2cSCL] := _PinLow
+    outa[i2cSCL] := _pinLow
 
     ' clock in the byte
     i2cData := 0
     repeat 8
-      outa[i2cSCL] := _PinHigh
+      outa[i2cSCL] := _pinHigh
       i2cData := (i2cData << 1) | ina[i2cSDA]
-      outa[i2cSCL] := _PinLow
+      outa[i2cSCL] := _pinLow
 
     ' send the ACK or NAK
     dira[i2cSDA] ~~
-    outa[i2cSCL] := _PinHigh
+    outa[i2cSCL] := _pinHigh
     outa[i2cSDA] := ackbit
-    outa[i2cSCL] := _PinLow
+    outa[i2cSCL] := _pinLow
 
     ' return the data
     return i2cData

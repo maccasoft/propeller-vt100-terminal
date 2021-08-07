@@ -63,7 +63,7 @@ PUB StartRxTx(rxpin, txpin, mode, baudrate) : okay
     Returns    : True (non-zero) if cog started, or False (0) if no cog is available.
 }}
 
-    stop
+    Stop
     longfill(@rx_head, 0, 4)
     longmove(@rx_pin, @rxpin, 3)
     bit_ticks := clkfreq / baudrate
@@ -87,14 +87,14 @@ PUB Count
 }}
 
     result := rx_head - rx_tail
-    result -= BUFFER_LENGTH*(count < 0)
+    result -= BUFFER_LENGTH*(Count < 0)
 
 PUB Flush
 {{
     Flush receive buffer.
 }}
 
-    repeat while rxcheck => 0
+    repeat while RxCheck => 0
 
 PUB Char(ch)
 {{
