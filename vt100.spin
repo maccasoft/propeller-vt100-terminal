@@ -1083,10 +1083,10 @@ _ed                 cmp     args, #2 wz             ' clear entire screen
         if_z        jmp     #:ed0
                     jmp     #_done
 :ed0                mov     t3, txt_bcnt
-                    sub     t3, t2
-                    sub     t1, #2                  ' clear screen from cursor down
-                    wrword  a, t1
-                    djnz    t3, #$-2
+                    sub     t3, t2   wz
+        if_nz       sub     t1, #2                  ' clear screen from cursor down
+        if_nz       wrword  a, t1
+        if_nz       djnz    t3, #$-2
                     jmp     #_done
 :ed1                mov     t3, t2                  ' clear screen from cursor up
                     add     t3, #1
@@ -1198,10 +1198,10 @@ _el                 mov     t1, y                   ' t1 := y * 80
 :el0                sub     t1, x                   ' clear line from cursor right
                     sub     t1, x
                     mov     t3, #scrn_columns
-                    sub     t3, x
-                    sub     t1, #2
-                    wrword  a, t1
-                    djnz    t3, #$-2
+                    sub     t3, x    wz
+        if_nz       sub     t1, #2
+        if_nz       wrword  a, t1
+        if_nz       djnz    t3, #$-2
                     jmp     #_done
 :el1                mov     t3, x                   ' clear line from cursor left
                     add     t3, #1
